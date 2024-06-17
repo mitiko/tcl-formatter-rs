@@ -2,28 +2,23 @@ use std::io::BufRead;
 
 #[derive(Clone)]
 pub enum Token {
-    Keyword(Keyword), // set | proc | if | else | etc.
-    LBracket,         // {
-    RBracket,         // }
-    Hash,             // #
-    Newline,          // \n
-    Other(Vec<u8>),   // lazy
-}
-
-#[derive(Clone, Copy)]
-pub enum Keyword {
-    Set,      //
-    Proc,     //
-    If,       //
-    ElseIf,   //
-    Else,     //
-    Switch,   //
-    Log,      //
-    Snat,     //
-    Node,     //
-    Pool,     //
-    SnatPool, //
-    Return,   //
+    KeywordSet,      // set
+    KeywordProc,     // proc
+    KeywordIf,       // if
+    KeywordElseIf,   // elseif
+    KeywordElse,     // else
+    KeywordSwitch,   // switch
+    KeywordLog,      // log
+    KeywordSnat,     // snat
+    KeywordNode,     // node
+    KeywordPool,     // pool
+    KeywordSnatPool, // snatpool
+    KeywordReturn,   // return
+    LBracket,        // {
+    RBracket,        // }
+    Hash,            // #
+    Newline,         // \n
+    Other(Vec<u8>),  // <lazy>
 }
 
 pub struct Lexer {
@@ -46,7 +41,6 @@ impl Lexer {
 
     fn lex_line(&mut self, mut line: &[u8]) {
         if line.is_empty() {
-            self.tokens.push(Token::Newline);
             return;
         }
 
@@ -101,18 +95,18 @@ impl Lexer {
             .count();
 
         match line {
-            x if x.starts_with(b"snatpool") => Some((Token::Keyword(Keyword::SnatPool), 8)),
-            x if x.starts_with(b"switch") => Some((Token::Keyword(Keyword::Switch), 6)),
-            x if x.starts_with(b"return") => Some((Token::Keyword(Keyword::Return), 6)),
-            x if x.starts_with(b"elseif") => Some((Token::Keyword(Keyword::ElseIf), 6)),
-            x if x.starts_with(b"else") => Some((Token::Keyword(Keyword::Else), 4)),
-            x if x.starts_with(b"pool") => Some((Token::Keyword(Keyword::Pool), 4)),
-            x if x.starts_with(b"node") => Some((Token::Keyword(Keyword::Node), 4)),
-            x if x.starts_with(b"proc") => Some((Token::Keyword(Keyword::Proc), 4)),
-            x if x.starts_with(b"snat") => Some((Token::Keyword(Keyword::Snat), 4)),
-            x if x.starts_with(b"log") => Some((Token::Keyword(Keyword::Log), 3)),
-            x if x.starts_with(b"set") => Some((Token::Keyword(Keyword::Set), 3)),
-            x if x.starts_with(b"if") => Some((Token::Keyword(Keyword::If), 2)),
+            x if x.starts_with(b"snatpool") => Some((Token::KeywordSnatPool, 8)),
+            x if x.starts_with(b"switch") => Some((Token::KeywordSwitch, 6)),
+            x if x.starts_with(b"return") => Some((Token::KeywordReturn, 6)),
+            x if x.starts_with(b"elseif") => Some((Token::KeywordElseIf, 6)),
+            x if x.starts_with(b"else") => Some((Token::KeywordElse, 4)),
+            x if x.starts_with(b"pool") => Some((Token::KeywordPool, 4)),
+            x if x.starts_with(b"node") => Some((Token::KeywordNode, 4)),
+            x if x.starts_with(b"proc") => Some((Token::KeywordProc, 4)),
+            x if x.starts_with(b"snat") => Some((Token::KeywordSnat, 4)),
+            x if x.starts_with(b"log") => Some((Token::KeywordLog, 3)),
+            x if x.starts_with(b"set") => Some((Token::KeywordSet, 3)),
+            x if x.starts_with(b"if") => Some((Token::KeywordIf, 2)),
             _ => None,
         }
         .map(|(t, c)| (t, c + consumed))

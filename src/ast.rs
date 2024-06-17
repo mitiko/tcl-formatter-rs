@@ -36,5 +36,6 @@ pub enum Statement {
     Node { ip_address: Vec<u8>, port: Vec<u8> },
     Pool { identifier: Vec<u8> },
     SnatPool { identifier: Vec<u8> },
-    Return { value: Option<Vec<u8>>, },
+    Return { value: Option<Vec<u8>> },
+    // Other { data: Vec<u8> },
 }

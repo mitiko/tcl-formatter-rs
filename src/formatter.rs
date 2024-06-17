@@ -17,7 +17,12 @@ impl Formatter {
         }
     }
 
-    pub fn run(&mut self, ast: Ast) {
+    pub fn format(mut self, ast: Ast) -> Vec<u8> {
+        self.run(ast);
+        self.buf
+    }
+
+    fn run(&mut self, ast: Ast) {
         self.consecutive_new_lines = match ast {
             Ast::Newline => self.consecutive_new_lines + 1,
             _ => 0,
@@ -199,9 +204,5 @@ impl Formatter {
                 acc
             });
         self.buf.extend_from_slice(&data);
-    }
-
-    pub fn output(self) -> Vec<u8> {
-        self.buf
     }
 }

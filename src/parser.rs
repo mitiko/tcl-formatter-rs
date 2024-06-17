@@ -1,23 +1,17 @@
-use crate::{ast::Ast, position::Position};
+use crate::{ast::Ast, lexer::Token};
 
-pub struct Parser {
-    buf: Vec<u8>,
-    pos: Position,
-}
+pub struct Parser {}
 
 impl Parser {
-    pub fn new(buf: Vec<u8>) -> Self {
-        Self {
-            buf,
-            pos: Position::default(),
-        }
+    pub fn new() -> Self {
+        Self {}
     }
 
-    pub fn parse(&mut self) -> Ast {
-        todo!()
+    pub fn parse(mut self, tokens: Vec<Token>) -> Ast {
+        self.run(&tokens)
     }
 
-    pub fn parse_shallow(&self) -> Vec<Ast> {
+    fn run(&mut self, tokens: &[Token]) -> Ast {
         todo!()
     }
 }

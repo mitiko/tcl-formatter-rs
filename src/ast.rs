@@ -1,14 +1,14 @@
 pub enum Ast {
-    Block(Vec<Ast>), // list of ASTs
+    Block(Vec<Ast>),  // list of ASTs
     Comment(Vec<u8>), // text after #
     Procedure {
         name: Vec<u8>,
         parameters: Vec<Vec<u8>>,
-        body: Box<Ast>
+        body: Box<Ast>,
     },
     If {
         condition: Vec<u8>,
-        body: Box<Ast>
+        body: Box<Ast>,
     },
     IfElse {
         condition: Vec<u8>,
@@ -17,26 +17,22 @@ pub enum Ast {
     },
     IfElseIf {
         condition_block_vec: Vec<(Vec<u8>, Ast)>,
-        block_if_false: Box<Ast>
+        block_if_false: Box<Ast>,
     },
     Switch {
         condition: Vec<u8>,
-        value_block_or_fallthrough_vec: Vec<(Vec<u8>, Option<Ast>)>
+        value_block_or_fallthrough_vec: Vec<(Vec<u8>, Option<Ast>)>,
     },
-    Set {
-        identifier: Vec<u8>,
-        value: Vec<u8>
-    },
-    Log {
-        bucket: Vec<u8>,
-        value: Vec<u8>
-    },
-    // TODO: snat
-    // TODO: node
-    // TODO: pool
     // TODO: GTP/UDP
-    OtherStatement(Vec<u8>),
-    Return {
-        value: Option<Vec<u8>>
-    },
+    Statement(Statement),
+}
+
+pub enum Statement {
+    Set { identifier: Vec<u8>, value: Vec<u8> },
+    Log { bucket: Vec<u8>, value: Vec<u8> },
+    Snat { ip_address: Vec<u8>, port: Vec<u8> },
+    Node { ip_address: Vec<u8>, port: Vec<u8> },
+    Pool { identifier: Vec<u8> },
+    SnatPool { identifier: Vec<u8> },
+    Return { value: Option<Vec<u8>>, },
 }

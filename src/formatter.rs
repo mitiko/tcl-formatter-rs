@@ -1,6 +1,6 @@
 use std::iter;
 
-use crate::ast::Ast;
+use crate::ast::{Ast, Statement};
 
 pub fn format(ast: Ast) -> Vec<u8> {
     format_with_indent(0, ast)
@@ -116,35 +116,9 @@ fn format_with_indent(level: usize, ast: Ast) -> Vec<u8> {
             buf.extend_from_slice(&indent(level));
             buf.extend_from_slice(b"}\n");
         }
-        Ast::Set { identifier, value } => {
+        Ast::Statement(s) => {
             buf.extend_from_slice(&indent(level));
-            buf.extend_from_slice(b"set ");
-            buf.extend_from_slice(&identifier);
-            buf.push(b' ');
-            buf.extend_from_slice(&value);
-            buf.push(b'\n');
-        }
-        Ast::Log { bucket, value } => {
-            buf.extend_from_slice(&indent(level));
-            buf.extend_from_slice(b"log ");
-            buf.extend_from_slice(&bucket);
-            buf.push(b' ');
-            buf.extend_from_slice(&value);
-            buf.push(b'\n');
-        }
-        Ast::OtherStatement(line) => {
-            buf.extend_from_slice(&indent(level));
-            buf.extend_from_slice(&line);
-            buf.push(b'\n');
-        }
-        Ast::Return { value } => {
-            buf.extend_from_slice(&indent(level));
-            buf.extend_from_slice(b"return");
-            if let Some(value) = value {
-                buf.push(b' ');
-                buf.extend_from_slice(&value);
-            }
-            buf.push(b'\n');
+            buf.extend_from_slice(&fmt_statement(s));
         }
     }
 
@@ -158,4 +132,34 @@ fn indent(level: usize) -> Vec<u8> {
             acc.extend_from_slice(e);
             acc
         })
+}
+
+fn fmt_statement(s: Statement) -> Vec<u8> {
+    let (keyword, v1, v2): (&[u8], _, _) = match s {
+        Statement::Set { identifier, value } => (b"set", Some(identifier), Some(value)),
+        Statement::Log { bucket, value } => (b"log", Some(bucket), Some(value)),
+        Statement::Snat { ip_address, port } => (b"snat", Some(ip_address), Some(port)),
+        Statement::Node { ip_address, port } => (b"node", Some(ip_address), Some(port)),
+        Statement::Pool { identifier } => (b"pool", Some(identifier), None),
+        Statement::SnatPool { identifier } => (b"snatpool", Some(identifier), None),
+        Statement::Return { value } => (b"return", value, None),
+    };
+    let mut buf = Vec::new();
+    buf.extend_from_slice(keyword);
+    match (v1, v2) {
+        (Some(v1), Some(v2)) => {
+            buf.push(b' ');
+            buf.extend_from_slice(&v1);
+            buf.push(b' ');
+            buf.extend_from_slice(&v2);
+        }
+        (Some(v1), None) => {
+            buf.push(b' ');
+            buf.extend_from_slice(&v1);
+        }
+        (None, None) => todo!(),
+        _ => unreachable!(),
+    }
+    buf.push(b'\n');
+    buf
 }

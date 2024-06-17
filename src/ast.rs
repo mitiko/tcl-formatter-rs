@@ -1,3 +1,4 @@
+// Assume all Vec<u8> in ASTs are l-stripped and r-stripped of '\s\t' | ';'
 pub enum Ast {
     Block(Vec<Ast>),  // list of ASTs
     Comment(Vec<u8>), // text after #
@@ -25,6 +26,7 @@ pub enum Ast {
     },
     // TODO: GTP/UDP
     Statement(Statement),
+    Newline,
 }
 
 pub enum Statement {

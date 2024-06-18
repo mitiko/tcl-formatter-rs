@@ -8,11 +8,6 @@ pub enum Ast {
         body: Box<Ast>,
     },
     If {
-        condition: Vec<u8>,
-        block_if_true: Box<Ast>,
-        maybe_block_if_false: Option<Box<Ast>>,
-    },
-    IfElseIf {
         condition_block_vec: Vec<(Vec<u8>, Ast)>,
         maybe_block_if_false: Option<Box<Ast>>,
     },
@@ -20,9 +15,9 @@ pub enum Ast {
         condition: Vec<u8>,
         value_block_or_fallthrough_vec: Vec<(Vec<u8>, Option<Ast>)>,
     },
-    // TODO: GTP/UDP
     Statement(Statement),
     Newline,
+    // TODO: GTP/UDP func calls
 }
 
 pub enum Statement {

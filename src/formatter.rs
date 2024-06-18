@@ -58,26 +58,6 @@ impl Formatter {
                 self.close_block();
             }
             Ast::If {
-                condition,
-                block_if_true,
-                maybe_block_if_false,
-            } => {
-                self.indent();
-                self.write(b"if { ");
-                self.write(&condition);
-                self.writeline(b" } {");
-                self.run_nested(*block_if_true);
-                self.close_block();
-
-                if let Some(block_if_false) = maybe_block_if_false {
-                    self.indent();
-                    self.write(b"else {");
-                    self.newline();
-                    self.run_nested(*block_if_false);
-                    self.close_block();
-                }
-            }
-            Ast::IfElseIf {
                 condition_block_vec,
                 maybe_block_if_false,
             } => {

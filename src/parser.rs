@@ -19,17 +19,18 @@ impl Parser {
     }
 
     fn try_parse_if(mut tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing if");
         let mut condition_body_clauses = Vec::new();
         let mut consumed = 1; // starts from 1 for the if keyword
         tokens = &tokens[consumed..];
 
         let condition_tokens = Parser::try_extract_block(tokens)?;
-        tokens = &tokens[condition_tokens.len()..];
-        consumed += condition_tokens.len();
+        tokens = &tokens[condition_tokens.len() + 2..];
+        consumed += condition_tokens.len() + 2;
 
         let body_tokens = Parser::try_extract_block(tokens)?;
-        tokens = &tokens[body_tokens.len()..];
-        consumed += body_tokens.len();
+        tokens = &tokens[body_tokens.len() + 2..];
+        consumed += body_tokens.len() + 2;
 
         let if_condition = Parser::parse_vec(condition_tokens);
         let (body_if_true, _) = Parser::try_parse(body_tokens)?;
@@ -52,7 +53,7 @@ impl Parser {
             }
             (Some(Token::KeywordElse), Some(Token::LBracket)) => {
                 let else_body_tokens = Parser::try_extract_block(tokens)?;
-                consumed += else_body_tokens.len() + 1; // +1 for the else keyword
+                consumed += else_body_tokens.len() + 1 + 2; // +1 for the else keyword, +2 for brackets
                 let (block_if_false, _) = Parser::try_parse(else_body_tokens)?;
                 Some(Box::new(block_if_false))
             }
@@ -68,14 +69,70 @@ impl Parser {
         ));
     }
 
+    fn try_parse_when(mut tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing when");
+        let Token::Other(event_name) = &tokens[1] else {
+            unreachable!();
+        };
+
+        let mut consumed = 2; // starts from 2 for the when keyword & the event name
+        tokens = &tokens[consumed..];
+
+        let body_tokens = Parser::try_extract_block(tokens)?;
+        consumed += body_tokens.len() + 2;
+
+        let (body_if_true, _) = Parser::try_parse(body_tokens)?;
+
+        return Ok((
+            Ast::When {
+                event_name: event_name.to_vec(),
+                body: Box::new(body_if_true),
+            },
+            consumed,
+        ));
+    }
+
+    fn try_parse_set(tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing set");
+        let Token::Other(data) = &tokens[1] else {
+            unreachable!();
+        };
+        let mut consumed = 2; // starts from 2 for the set keyword & the identifier
+
+        let mut space_iterator = data.split(|&x| x == b' ');
+        let identifier = space_iterator.next().ok_or(ParserFail)?.to_vec();
+        let mut value = space_iterator
+            .next()
+            .map(|x| x.to_vec())
+            .unwrap_or(Vec::new());
+
+        for token in &tokens[2..] {
+            consumed += 1;
+            value.extend(Vec::from(token));
+            if let Token::Newline = token {
+                break;
+            }
+        }
+
+        return Ok((
+            Ast::Statement(Statement::Set { identifier, value }),
+            consumed,
+        ));
+    }
+
     fn try_parse(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         let mut trees = Vec::new();
         let mut total_consumed = 0;
         loop {
             let (ast, consumed) = match Parser::try_parse_one(tokens)? {
                 (None, 0) => break,
-                (None, n) => { tokens = &tokens[n..]; continue; },
+                (None, 1) => {
+                    tokens = &tokens[1..];
+                    total_consumed += 1;
+                    continue;
+                }
                 (Some(ast), consumed) => (ast, consumed),
+                _ => unreachable!(),
             };
             tokens = &tokens[consumed..];
             total_consumed += consumed;
@@ -87,23 +144,24 @@ impl Parser {
 
     fn try_parse_one(tokens: &[Token]) -> Result<(Option<Ast>, usize)> {
         let (ast, consumed) = match (tokens.get(0), tokens.get(1), tokens.get(2)) {
-            (Some(Token::KeywordIf), Some(Token::LBracket), ..) => Parser::try_parse_if(tokens),
             (Some(Token::Hash), Some(Token::Other(comment_text)), Some(Token::Newline)) => {
+                // comment
                 let ast = Ast::Comment(comment_text.to_vec());
                 Ok((ast, 2))
             }
-            (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
-            (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)),
-            (Some(Token::Other(data)), ..) => {
-                let ast = Ast::Statement(Statement::Other {
-                    data: data.to_vec(),
-                });
-                Ok((ast, 1))
+            (Some(Token::KeywordIf), Some(Token::LBracket), ..) => Parser::try_parse_if(tokens),
+            (Some(Token::KeywordWhen), Some(Token::Other(_)), Some(Token::LBracket)) => {
+                Parser::try_parse_when(tokens)
             }
+            (Some(Token::KeywordSet), Some(Token::Other(_)), ..) => Parser::try_parse_set(tokens),
+
+            (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
+            (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline
             (None, ..) => return Ok((None, 0)),
             _ => {
                 dbg!(&tokens[0]);
                 dbg!(&tokens[1]);
+                dbg!(&tokens[2]);
                 return Err(ParserFail);
             } // TODO:
         }?;
@@ -111,8 +169,8 @@ impl Parser {
     }
 
     fn try_extract_block(tokens: &[Token]) -> Result<&[Token]> {
-        let mut depth = 1;
-        for (idx, token) in tokens.iter().skip(1).enumerate() {
+        let mut depth = 0;
+        for (idx, token) in tokens.iter().enumerate() {
             match token {
                 Token::LBracket => depth += 1,
                 Token::RBracket => depth -= 1,

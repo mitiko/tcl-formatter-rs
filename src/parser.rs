@@ -2,7 +2,8 @@ use crate::{ast::Ast, lexer::Token};
 
 pub struct Parser {}
 
-struct ParserFail;
+#[derive(Debug)]
+pub struct ParserFail;
 type Result<T> = std::result::Result<T, ParserFail>;
 
 impl Parser {
@@ -10,38 +11,59 @@ impl Parser {
         Self {}
     }
 
-    pub fn parse(mut self, tokens: &[Token]) -> Ast {
-        self.run(&tokens)
+    pub fn parse(self, tokens: &[Token]) -> Result<Ast> {
+        Parser::try_parse(tokens)
     }
 
-    fn try_parse_if_condition(mut tokens: &[Token]) -> Result<Ast> {
-        match (tokens.get(0), tokens.get(1)) {
-            (Some(Token::KeywordIf), Some(Token::LBracket)) => {}
-            _ => return Err(ParserFail),
-        }
-        tokens = &tokens[1..];
+    fn try_parse_if(mut tokens: &[Token]) -> Result<Ast> {
+        let mut condition_body_clauses = Vec::new();
 
-        let condition_tokens = Parser::try_parse_block(tokens)?;
+        let condition_tokens = Parser::try_extract_block(tokens)?;
         tokens = &tokens[condition_tokens.len()..];
 
-        let condition = Parser::try_parse(condition_tokens)?;
+        let body_tokens = Parser::try_extract_block(tokens)?;
+        tokens = &tokens[body_tokens.len()..];
 
-        let body_tokens = Parser::try_parse_block(tokens)?;
-        let body = Parser::try_parse(body_tokens)?;
+        let if_condition = Parser::parse_vec(condition_tokens);
+        let body_if_true = Parser::try_parse(body_tokens)?;
+        condition_body_clauses.push((if_condition, body_if_true));
 
-        // TODO: condition to Vec<u8>
-        return Ok(Ast::If { condition: Vec::new(), body: Box::new(body) });
+        let maybe_block_if_false = match (tokens.get(0), tokens.get(1)) {
+            (Some(Token::KeywordElseIf), Some(Token::LBracket)) => {
+                match Parser::try_parse_if(&tokens[1..])? {
+                    Ast::If {
+                        condition_block_vec,
+                        maybe_block_if_false,
+                    } => {
+                        condition_body_clauses.extend(condition_block_vec);
+                        maybe_block_if_false
+                    }
+                    _ => return Err(ParserFail),
+                }
+            }
+            (Some(Token::KeywordElse), Some(Token::LBracket)) => {
+                let else_body_tokens = Parser::try_extract_block(tokens)?;
+                let block_if_false = Parser::try_parse(else_body_tokens)?;
+                Some(Box::new(block_if_false))
+            }
+            _ => None,
+        };
+
+        return Ok(Ast::If {
+            condition_block_vec: condition_body_clauses,
+            maybe_block_if_false,
+        });
     }
 
     fn try_parse(tokens: &[Token]) -> Result<Ast> {
-        todo!()
+        match (tokens.get(0), tokens.get(1)) {
+            (Some(Token::KeywordIf), Some(Token::LBracket)) => Parser::try_parse_if(&tokens[1..]),
+            _ => return Err(ParserFail),
+            // TODO:
+        }
     }
 
-    fn try_parse_block(tokens: &[Token]) -> Result<&[Token]> {
-        match tokens.get(0) {
-            Some(Token::LBracket) => {}
-            _ => return Err(ParserFail),
-        }
+    fn try_extract_block(tokens: &[Token]) -> Result<&[Token]> {
         let mut depth = 1;
         for (idx, token) in tokens.iter().skip(1).enumerate() {
             match token {
@@ -56,18 +78,7 @@ impl Parser {
         Err(ParserFail)
     }
 
-    fn run(&mut self, tokens: &[Token]) -> Ast {
-        let res = Vec::new();
-        let mut groups = Parser::parse_groups(tokens).into_iter();
-
-        let Some(group) = groups.next() else {
-            return Ast::Block(Vec::new());
-        };
-        match group {
-            TokenGroup::Single(Token::KeywordIf) => {}
-            TokenGroup::Single(Token::KeywordNode) => {}
-            _ => {}
-        }
-        Ast::Block(res)
+    fn parse_vec(tokens: &[Token]) -> Vec<u8> {
+        tokens.into_iter().flat_map(|t| Vec::from(t)).collect()
     }
 }

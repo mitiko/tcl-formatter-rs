@@ -1,25 +1,26 @@
 use std::io::BufRead;
 
 pub enum Token {
-    KeywordSet,      // set
-    KeywordProc,     // proc
-    KeywordIf,       // if
-    KeywordElseIf,   // elseif
-    KeywordElse,     // else
-    KeywordSwitch,   // switch
-    KeywordLog,      // log
-    KeywordSnat,     // snat
-    KeywordNode,     // node
-    KeywordPool,     // pool
-    KeywordSnatPool, // snatpool
-    KeywordReturn,   // return
-    KeywordWhen,     // when
-    LBracket,        // {
-    RBracket,        // }
-    Dollar,          // $
-    Hash,            // #
-    Newline,         // \n
-    Other(Vec<u8>),  // <lazy>
+    KeywordSet,          // set
+    KeywordProc,         // proc
+    KeywordIf,           // if
+    KeywordElseIf,       // elseif
+    KeywordElse,         // else
+    KeywordSwitch,       // switch
+    KeywordLog,          // log
+    KeywordSnat,         // snat
+    KeywordNode,         // node
+    KeywordPool,         // pool
+    KeywordSnatPool,     // snatpool
+    KeywordReturn,       // return
+    KeywordWhen,         // when
+    LBracket,            // {
+    RBracket,            // }
+    Dollar,              // $
+    Hash,                // #
+    Newline,             // \n
+    Identifier(Vec<u8>), // [a-zA-Z0-9_\.]+
+    Other(Vec<u8>),      // <lazy>
 }
 
 pub struct Lexer {
@@ -41,66 +42,33 @@ impl Lexer {
     }
 
     fn lex_line(&mut self, mut line: &[u8]) {
-        if line.is_empty() {
-            return;
-        }
-
-        if let Some((token, consumed)) = Lexer::try_keyword(&line) {
+        while let Some((token, consumed)) = self.try_lex(line) {
             self.tokens.push(token);
-            self.lex_line(&line[consumed..]);
-            return;
-        }
+            line = &line[consumed..];
 
-        while !line.is_empty() {
-            while let Some((token, consumed)) = Lexer::try_char(line) {
-                self.tokens.push(token);
-                line = &line[consumed..];
-
-                match self.tokens.last().unwrap() {
-                    Token::Hash => {
-                        self.tokens.push(Token::Other(Lexer::normalize(&line))); // lstrip only
-                        return;
-                    }
-                    _ => {}
+            match self.tokens.last().unwrap() {
+                Token::Hash => {
+                    self.tokens.push(Token::Other(Lexer::normalize(&line))); // lstrip only
+                    return;
                 }
+                _ => {}
             }
-            if line.is_empty() {
-                return;
-            }
-
-            let mut buf = Vec::new();
-            while Lexer::try_char(line).is_none() && !line.is_empty() {
-                buf.push(line[0]);
-                line = &line[1..];
-            }
-            self.tokens.push(Token::Other(Lexer::normalize(&buf))); // lstrip only
+        }
+        if !line.is_empty() {
+            println!("lexer: failed to read next");
+            dbg!(self.tokens.last());
+            dbg!(String::from_utf8_lossy(line));
+            unreachable!();
         }
     }
 
-    fn try_char(line_suffix: &[u8]) -> Option<(Token, usize)> {
-        let consumed = line_suffix
-            .iter()
-            .take_while(|&&x| is_whitespace_or_semicolon(x))
-            .count();
-
-        match line_suffix.iter().skip(consumed).next() {
-            Some(b'{') => Some(Token::LBracket),
-            Some(b'}') => Some(Token::RBracket),
-            Some(b'#') => Some(Token::Hash),
-            Some(b'$') => Some(Token::Dollar),
-            _ => None,
-            // TODO: '(' | ')' | '"' | '''
-        }
-        .map(|t| (t, 1 + consumed))
-    }
-
-    fn try_keyword(line: &[u8]) -> Option<(Token, usize)> {
+    fn try_lex(&self, line: &[u8]) -> Option<(Token, usize)> {
         let consumed = line
             .iter()
             .take_while(|&&x| is_whitespace_or_semicolon(x))
             .count();
 
-        match line {
+        match &line[consumed..] {
             x if x.starts_with(b"snatpool") => Some((Token::KeywordSnatPool, 8)),
             x if x.starts_with(b"switch") => Some((Token::KeywordSwitch, 6)),
             x if x.starts_with(b"return") => Some((Token::KeywordReturn, 6)),
@@ -114,7 +82,22 @@ impl Lexer {
             x if x.starts_with(b"log") => Some((Token::KeywordLog, 3)),
             x if x.starts_with(b"set") => Some((Token::KeywordSet, 3)),
             x if x.starts_with(b"if") => Some((Token::KeywordIf, 2)),
-            _ => None,
+            x if x.starts_with(b"{") => Some((Token::LBracket, 1)),
+            x if x.starts_with(b"}") => Some((Token::RBracket, 1)),
+            x if x.starts_with(b"#") => Some((Token::Hash, 1)),
+            x if x.starts_with(b"$") => Some((Token::Dollar, 1)),
+            b"" => None,
+            x => {
+                let identifier = Lexer::extract_identifier(x);
+                let len = identifier.len();
+                if len == 0 {
+                    let rem = line[consumed..].to_vec();
+                    let len = rem.len();
+                    Some((Token::Other(rem), len))
+                } else {
+                    Some((Token::Identifier(identifier), len))
+                }
+            }
         }
         .map(|(t, c)| (t, c + consumed))
     }
@@ -130,6 +113,14 @@ impl Lexer {
         buf.reverse();
         buf.into_iter()
             .skip_while(|&x| is_whitespace_or_semicolon(x))
+            .collect()
+    }
+
+    fn extract_identifier(line: &[u8]) -> Vec<u8> {
+        // assume line is lstripped
+        line.into_iter()
+            .take_while(|&&x| x.is_ascii_alphanumeric() || x == b'_' || x == b'.')
+            .cloned()
             .collect()
     }
 }
@@ -162,6 +153,7 @@ impl From<&Token> for Vec<u8> {
             Token::Dollar => b"$".to_vec(),
             Token::Hash => b"#".to_vec(),
             Token::Newline => b"\n".to_vec(),
+            Token::Identifier(data) => data.to_vec(),
             Token::Other(data) => data.to_vec(),
         }
     }

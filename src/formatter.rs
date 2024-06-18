@@ -58,7 +58,7 @@ impl Formatter {
                 self.close_block();
             }
             Ast::If {
-                condition_block_vec,
+                condition_body_clauses: condition_block_vec,
                 maybe_block_if_false,
             } => {
                 for (idx, (condition, block)) in condition_block_vec.into_iter().enumerate() {

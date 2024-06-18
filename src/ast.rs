@@ -8,7 +8,7 @@ pub enum Ast {
         body: Box<Ast>,
     },
     If {
-        condition_block_vec: Vec<(Vec<u8>, Ast)>,
+        condition_body_clauses: Vec<(Vec<u8>, Ast)>,
         maybe_block_if_false: Option<Box<Ast>>,
     },
     Switch {

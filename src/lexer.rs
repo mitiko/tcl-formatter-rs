@@ -33,6 +33,7 @@ impl Lexer {
     pub fn lex(mut self, buf: Vec<u8>) -> Vec<Token> {
         for line in buf.lines() {
             self.lex_line(&Lexer::normalize(line.unwrap().as_bytes())); // lstrip & rstrip
+            self.tokens.push(Token::Newline);
         }
 
         self.tokens
@@ -40,32 +41,38 @@ impl Lexer {
 
     fn lex_line(&mut self, mut line: &[u8]) {
         if line.is_empty() {
-            self.tokens.push(Token::Newline);
             return;
         }
 
-        match Lexer::try_keyword(&line) {
-            Some((token, consumed)) => {
+        if let Some((token, consumed)) = Lexer::try_keyword(&line) {
+            self.tokens.push(token);
+            self.lex_line(&line[consumed..]);
+            return;
+        }
+
+        while !line.is_empty() {
+            while let Some((token, consumed)) = Lexer::try_char(line) {
                 self.tokens.push(token);
                 line = &line[consumed..];
-            }
-            None => {}
-        }
 
-        while let Some((token, consumed)) = Lexer::try_char(line) {
-            self.tokens.push(token);
-            line = &line[consumed..];
-
-            match self.tokens.last().unwrap() {
-                Token::Hash => {
-                    self.tokens.push(Token::Other(Lexer::normalize(&line))); // lstrip only
-                    return;
+                match self.tokens.last().unwrap() {
+                    Token::Hash => {
+                        self.tokens.push(Token::Other(Lexer::normalize(&line))); // lstrip only
+                        return;
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
-        if line.len() != 0 {
-            self.tokens.push(Token::Other(Lexer::normalize(line))); // lstrip only
+            if line.is_empty() {
+                return;
+            }
+
+            let mut buf = Vec::new();
+            while Lexer::try_char(line).is_none() && !line.is_empty() {
+                buf.push(line[0]);
+                line = &line[1..];
+            }
+            self.tokens.push(Token::Other(Lexer::normalize(&buf))); // lstrip only
         }
     }
 
@@ -164,7 +171,7 @@ impl std::fmt::Debug for Token {
             Self::Other(arg0) => {
                 let s = String::from_utf8(arg0.to_vec()).expect("Failed to utf8 decode");
                 write!(f, "-{}", s)
-            },
+            }
             _ => {
                 let s = String::from_utf8(Vec::from(self)).expect("Failed to utf8 decode");
                 write!(f, " {}", s)

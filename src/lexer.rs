@@ -129,3 +129,27 @@ fn is_whitespace_or_semicolon(symbol: u8) -> bool {
         _ => false,
     }
 }
+
+impl From<&Token> for Vec<u8> {
+    fn from(val: &Token) -> Self {
+        match val {
+            Token::KeywordSet => b"set".to_vec(),
+            Token::KeywordProc => b"proc".to_vec(),
+            Token::KeywordIf => b"if".to_vec(),
+            Token::KeywordElseIf => b"elseif".to_vec(),
+            Token::KeywordElse => b"else".to_vec(),
+            Token::KeywordSwitch => b"switch".to_vec(),
+            Token::KeywordLog => b"log".to_vec(),
+            Token::KeywordSnat => b"snat".to_vec(),
+            Token::KeywordNode => b"node".to_vec(),
+            Token::KeywordPool => b"pool".to_vec(),
+            Token::KeywordSnatPool => b"snatpool".to_vec(),
+            Token::KeywordReturn => b"return".to_vec(),
+            Token::LBracket => b"{".to_vec(),
+            Token::RBracket => b"}".to_vec(),
+            Token::Hash => b"#".to_vec(),
+            Token::Newline => b"\n".to_vec(),
+            Token::Other(data) => data.to_vec(),
+        }
+    }
+}

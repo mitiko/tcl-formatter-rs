@@ -9,16 +9,12 @@ pub enum Ast {
     },
     If {
         condition: Vec<u8>,
-        body: Box<Ast>,
-    },
-    IfElse {
-        condition: Vec<u8>,
         block_if_true: Box<Ast>,
-        block_if_false: Box<Ast>,
+        maybe_block_if_false: Option<Box<Ast>>,
     },
     IfElseIf {
         condition_block_vec: Vec<(Vec<u8>, Ast)>,
-        block_if_false: Box<Ast>,
+        maybe_block_if_false: Option<Box<Ast>>,
     },
     Switch {
         condition: Vec<u8>,

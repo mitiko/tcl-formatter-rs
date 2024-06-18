@@ -57,18 +57,10 @@ impl Formatter {
                 self.run_nested(*body);
                 self.close_block();
             }
-            Ast::If { condition, body } => {
-                self.indent();
-                self.write(b"if { ");
-                self.write(&condition);
-                self.writeline(b" } {");
-                self.run_nested(*body);
-                self.close_block();
-            }
-            Ast::IfElse {
+            Ast::If {
                 condition,
                 block_if_true,
-                block_if_false,
+                maybe_block_if_false,
             } => {
                 self.indent();
                 self.write(b"if { ");
@@ -77,15 +69,17 @@ impl Formatter {
                 self.run_nested(*block_if_true);
                 self.close_block();
 
-                self.indent();
-                self.write(b"else {");
-                self.newline();
-                self.run_nested(*block_if_false);
-                self.close_block();
+                if let Some(block_if_false) = maybe_block_if_false {
+                    self.indent();
+                    self.write(b"else {");
+                    self.newline();
+                    self.run_nested(*block_if_false);
+                    self.close_block();
+                }
             }
             Ast::IfElseIf {
                 condition_block_vec,
-                block_if_false,
+                maybe_block_if_false,
             } => {
                 for (idx, (condition, block)) in condition_block_vec.into_iter().enumerate() {
                     self.indent();
@@ -99,10 +93,12 @@ impl Formatter {
                     self.run_nested(block);
                     self.close_block();
                 }
-                self.indent();
-                self.writeline(b"else {");
-                self.run_nested(*block_if_false);
-                self.close_block();
+                if let Some(block_if_false) = maybe_block_if_false {
+                    self.indent();
+                    self.writeline(b"else {");
+                    self.run_nested(*block_if_false);
+                    self.close_block();
+                }
             }
             Ast::Switch {
                 condition,

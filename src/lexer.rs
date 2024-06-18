@@ -15,6 +15,7 @@ pub enum Token {
     KeywordReturn,   // return
     LBracket,        // {
     RBracket,        // }
+    Dollar,          // $
     Hash,            // #
     Newline,         // \n
     Other(Vec<u8>),  // <lazy>
@@ -78,7 +79,9 @@ impl Lexer {
             Some(b'{') => Some(Token::LBracket),
             Some(b'}') => Some(Token::RBracket),
             Some(b'#') => Some(Token::Hash),
+            Some(b'$') => Some(Token::Dollar),
             _ => None,
+            // TODO: '(' | ')' | '"' | '''
         }
         .map(|t| (t, 1 + consumed))
     }
@@ -146,6 +149,7 @@ impl From<&Token> for Vec<u8> {
             Token::KeywordReturn => b"return".to_vec(),
             Token::LBracket => b"{".to_vec(),
             Token::RBracket => b"}".to_vec(),
+            Token::Dollar => b"$".to_vec(),
             Token::Hash => b"#".to_vec(),
             Token::Newline => b"\n".to_vec(),
             Token::Other(data) => data.to_vec(),

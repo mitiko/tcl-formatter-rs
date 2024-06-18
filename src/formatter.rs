@@ -4,7 +4,7 @@ use crate::ast::{Ast, Statement};
 
 pub struct Formatter {
     depth: usize,
-    consecutive_new_lines: usize,
+    consecutive_empty_lines: usize,
     buf: Vec<u8>,
 }
 
@@ -12,7 +12,7 @@ impl Formatter {
     pub fn new() -> Self {
         Self {
             depth: 0,
-            consecutive_new_lines: 0,
+            consecutive_empty_lines: 0,
             buf: Vec::new(),
         }
     }
@@ -23,8 +23,8 @@ impl Formatter {
     }
 
     fn run(&mut self, ast: Ast) {
-        self.consecutive_new_lines = match ast {
-            Ast::Newline => self.consecutive_new_lines + 1,
+        self.consecutive_empty_lines = match ast {
+            Ast::EmptyLine => self.consecutive_empty_lines + 1,
             _ => 0,
         };
 
@@ -112,8 +112,8 @@ impl Formatter {
                 self.indent();
                 self.write_statement(s);
             }
-            Ast::Newline => {
-                if self.consecutive_new_lines <= 2 {
+            Ast::EmptyLine => {
+                if self.consecutive_empty_lines <= 2 {
                     self.newline();
                 }
             }
@@ -127,16 +127,17 @@ impl Formatter {
     }
 
     fn write_statement(&mut self, s: Statement) {
-        let (keyword, v1, v2): (&[u8], _, _) = match s {
-            Statement::Set { identifier, value } => (b"set", Some(identifier), Some(value)),
-            Statement::Log { bucket, value } => (b"log", Some(bucket), Some(value)),
-            Statement::Snat { ip_address, port } => (b"snat", Some(ip_address), Some(port)),
-            Statement::Node { ip_address, port } => (b"node", Some(ip_address), Some(port)),
-            Statement::Pool { identifier } => (b"pool", Some(identifier), None),
-            Statement::SnatPool { identifier } => (b"snatpool", Some(identifier), None),
-            Statement::Return { value } => (b"return", value, None),
+        let (keyword, v1, v2) = match s {
+            Statement::Set { identifier, value } => (b"set".to_vec(), Some(identifier), Some(value)),
+            Statement::Log { bucket, value } => (b"log".to_vec(), Some(bucket), Some(value)),
+            Statement::Snat { ip_address, port } => (b"snat".to_vec(), Some(ip_address), Some(port)),
+            Statement::Node { ip_address, port } => (b"node".to_vec(), Some(ip_address), Some(port)),
+            Statement::Pool { identifier } => (b"pool".to_vec(), Some(identifier), None),
+            Statement::SnatPool { identifier } => (b"snatpool".to_vec(), Some(identifier), None),
+            Statement::Return { value } => (b"return".to_vec(), value, None),
+            Statement::Other { data } => (data, None, None),
         };
-        self.write(keyword);
+        self.write(&keyword);
         match (v1, v2) {
             (Some(v1), Some(v2)) => {
                 self.write(b" ");

@@ -16,7 +16,7 @@ pub enum Ast {
         value_block_or_fallthrough_vec: Vec<(Vec<u8>, Option<Ast>)>,
     },
     Statement(Statement),
-    Newline,
+    EmptyLine,
     // TODO: GTP/UDP func calls
 }
 
@@ -28,5 +28,5 @@ pub enum Statement {
     Pool { identifier: Vec<u8> },
     SnatPool { identifier: Vec<u8> },
     Return { value: Option<Vec<u8>> },
-    // Other { data: Vec<u8> },
+    Other { data: Vec<u8> },
 }

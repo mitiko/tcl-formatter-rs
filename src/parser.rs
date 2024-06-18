@@ -1,4 +1,7 @@
-use crate::{ast::Ast, lexer::Token};
+use crate::{
+    ast::{Ast, Statement},
+    lexer::Token,
+};
 
 pub struct Parser {}
 
@@ -65,12 +68,13 @@ impl Parser {
         ));
     }
 
-    fn try_parse(tokens: &[Token]) -> Result<(Ast, usize)> {
+    fn try_parse(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         let mut trees = Vec::new();
         let mut total_consumed = 0;
         while let Some((ast, consumed)) = Parser::try_parse_one(tokens)? {
             trees.push(ast);
             total_consumed += consumed;
+            tokens = &tokens[consumed..]
         }
         Ok((Ast::Block(trees), total_consumed))
     }
@@ -78,6 +82,15 @@ impl Parser {
     fn try_parse_one(tokens: &[Token]) -> Result<Option<(Ast, usize)>> {
         let (ast, consumed) = match (tokens.get(0), tokens.get(1)) {
             (Some(Token::KeywordIf), Some(Token::LBracket)) => Parser::try_parse_if(tokens),
+            (Some(Token::Hash), Some(Token::Other(comment_text))) => {
+                let ast = Ast::Comment(comment_text.to_vec());
+                Ok((ast, 2))
+            }
+            (Some(Token::Newline), _) => Ok((Ast::EmptyLine, 1)),
+            (Some(Token::Other(data)), _) => {
+                let ast = Ast::Statement(Statement::Other { data: data.to_vec() });
+                Ok((ast, 1))
+            }
             (None, _) => return Ok(None),
             _ => {
                 dbg!(&tokens[0]);

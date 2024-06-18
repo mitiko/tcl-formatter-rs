@@ -13,6 +13,7 @@ pub enum Token {
     KeywordPool,     // pool
     KeywordSnatPool, // snatpool
     KeywordReturn,   // return
+    KeywordWhen,     // when
     LBracket,        // {
     RBracket,        // }
     Dollar,          // $
@@ -109,6 +110,7 @@ impl Lexer {
             x if x.starts_with(b"node") => Some((Token::KeywordNode, 4)),
             x if x.starts_with(b"proc") => Some((Token::KeywordProc, 4)),
             x if x.starts_with(b"snat") => Some((Token::KeywordSnat, 4)),
+            x if x.starts_with(b"when") => Some((Token::KeywordWhen, 4)),
             x if x.starts_with(b"log") => Some((Token::KeywordLog, 3)),
             x if x.starts_with(b"set") => Some((Token::KeywordSet, 3)),
             x if x.starts_with(b"if") => Some((Token::KeywordIf, 2)),
@@ -154,6 +156,7 @@ impl From<&Token> for Vec<u8> {
             Token::KeywordPool => b"pool".to_vec(),
             Token::KeywordSnatPool => b"snatpool".to_vec(),
             Token::KeywordReturn => b"return".to_vec(),
+            Token::KeywordWhen => b"when".to_vec(),
             Token::LBracket => b"{".to_vec(),
             Token::RBracket => b"}".to_vec(),
             Token::Dollar => b"$".to_vec(),

@@ -116,6 +116,14 @@ impl Formatter {
                 if self.consecutive_empty_lines <= 2 {
                     self.newline();
                 }
+            },
+            Ast::When { event_name, body } => {
+                self.indent();
+                self.write(b"when ");
+                self.write(&event_name);
+                self.writeline(b" {");
+                self.run_nested(*body);
+                self.close_block();
             }
         }
     }

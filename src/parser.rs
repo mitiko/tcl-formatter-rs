@@ -6,7 +6,12 @@ use crate::{
 pub struct Parser {}
 
 #[derive(Debug)]
-pub struct ParserFail;
+pub enum ParserFail {
+    ElseIfBlock,
+    BracketMismatch,
+    NoMatch, // no tokens matched an AST block
+    Other, // TODO: remove this
+}
 type Result<T> = std::result::Result<T, ParserFail>;
 
 impl Parser {
@@ -15,6 +20,10 @@ impl Parser {
     }
 
     pub fn parse(self, tokens: &[Token]) -> Result<Ast> {
+        let cnt_lbracket = tokens.iter().filter(|&x| matches!(x, Token::LBracket)).count();
+        let cnt_rbracket = tokens.iter().filter(|&x| matches!(x, Token::RBracket)).count();
+        dbg!(cnt_lbracket);
+        dbg!(cnt_rbracket);
         Ok(Parser::try_parse(tokens)?.0)
     }
 
@@ -48,7 +57,7 @@ impl Parser {
                         condition_body_clauses.extend(elseif_clauses);
                         maybe_block_if_false
                     }
-                    _ => return Err(ParserFail),
+                    _ => return Err(ParserFail::ElseIfBlock),
                 }
             }
             (Some(Token::KeywordElse), Some(Token::LBracket)) => {
@@ -71,7 +80,7 @@ impl Parser {
 
     fn try_parse_when(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing when");
-        let Token::Other(event_name) = &tokens[1] else {
+        let Token::Identifier(event_name) = &tokens[1] else {
             unreachable!();
         };
 
@@ -100,7 +109,7 @@ impl Parser {
         let mut consumed = 2; // starts from 2 for the set keyword & the identifier
 
         let mut space_iterator = data.split(|&x| x == b' ');
-        let identifier = space_iterator.next().ok_or(ParserFail)?.to_vec();
+        let identifier = space_iterator.next().ok_or(ParserFail::Other)?.to_vec();
         let mut value = space_iterator
             .next()
             .map(|x| x.to_vec())
@@ -121,6 +130,7 @@ impl Parser {
     }
 
     fn try_parse(mut tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("-> recursive call to try_parse");
         let mut trees = Vec::new();
         let mut total_consumed = 0;
         loop {
@@ -150,7 +160,7 @@ impl Parser {
                 Ok((ast, 2))
             }
             (Some(Token::KeywordIf), Some(Token::LBracket), ..) => Parser::try_parse_if(tokens),
-            (Some(Token::KeywordWhen), Some(Token::Other(_)), Some(Token::LBracket)) => {
+            (Some(Token::KeywordWhen), Some(Token::Identifier(_)), Some(Token::LBracket)) => {
                 Parser::try_parse_when(tokens)
             }
             (Some(Token::KeywordSet), Some(Token::Other(_)), ..) => Parser::try_parse_set(tokens),
@@ -162,7 +172,7 @@ impl Parser {
                 dbg!(&tokens[0]);
                 dbg!(&tokens[1]);
                 dbg!(&tokens[2]);
-                return Err(ParserFail);
+                return Err(ParserFail::NoMatch);
             } // TODO:
         }?;
         Ok((Some(ast), consumed))
@@ -180,7 +190,7 @@ impl Parser {
                 return Ok(&tokens[1..idx]);
             }
         }
-        Err(ParserFail)
+        Err(ParserFail::BracketMismatch)
     }
 
     fn parse_vec(tokens: &[Token]) -> Vec<u8> {

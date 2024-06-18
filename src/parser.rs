@@ -72,6 +72,7 @@ impl Parser {
         let mut trees = Vec::new();
         let mut total_consumed = 0;
         while let Some((ast, consumed)) = Parser::try_parse_one(tokens)? {
+            dbg!(&ast);
             trees.push(ast);
             total_consumed += consumed;
             tokens = &tokens[consumed..]

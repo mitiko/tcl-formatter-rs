@@ -30,3 +30,32 @@ pub enum Statement {
     Return { value: Option<Vec<u8>> },
     Other { data: Vec<u8> },
 }
+
+impl std::fmt::Debug for Ast {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Block(trees) => write!(f, "Ast::Block of {} trees", trees.len()),
+            Self::Comment(_) => write!(f, "Ast::Comment"),
+            Self::Procedure { parameters, .. } => write!(f, "Ast::Procedure with {} parameters", parameters.len()),
+            Self::If { condition_body_clauses, maybe_block_if_false } => match (condition_body_clauses.len(), maybe_block_if_false) {
+                (1, None) => write!(f, "Ast::If (if)"),
+                (1, Some(_)) => write!(f, "Ast::If (if-else)"),
+                (x, None) => write!(f, "Ast::If (if-elseif[{}])", x),
+                (x, Some(_)) => write!(f, "Ast::If (if-elseif[{}]-else)", x),
+            },
+            Self::Switch { condition, .. } => write!(f, "Ast::Switch with {} conditions", condition.len()),
+            Self::Statement(s) => match s {
+                Statement::Set {..} => write!(f, "Ast::Statement::Set"),
+                Statement::Log {..} => write!(f, "Ast::Statement::Log"),
+                Statement::Snat {..} => write!(f, "Ast::Statement::Snat"),
+                Statement::Node {..} => write!(f, "Ast::Statement::Node"),
+                Statement::Pool {..} => write!(f, "Ast::Statement::Pool"),
+                Statement::SnatPool {..} => write!(f, "Ast::Statement::SnatPool"),
+                Statement::Return { value } if value.is_some() => write!(f, "Ast::Statement::Return with value"),
+                Statement::Return {..} => write!(f, "Ast::Statement::Return"),
+                Statement::Other { data } => write!(f, "Ast::Statement::Other with length {}", data.len()),
+            },
+            Self::EmptyLine => write!(f, "Ast::EmptyLine"),
+        }
+    }
+}

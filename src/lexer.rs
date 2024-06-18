@@ -33,7 +33,6 @@ impl Lexer {
     pub fn lex(mut self, buf: Vec<u8>) -> Vec<Token> {
         for line in buf.lines() {
             self.lex_line(&Lexer::normalize(line.unwrap().as_bytes())); // lstrip & rstrip
-            self.tokens.push(Token::Newline);
         }
 
         self.tokens
@@ -41,6 +40,7 @@ impl Lexer {
 
     fn lex_line(&mut self, mut line: &[u8]) {
         if line.is_empty() {
+            self.tokens.push(Token::Newline);
             return;
         }
 
@@ -70,10 +70,6 @@ impl Lexer {
     }
 
     fn try_char(line_suffix: &[u8]) -> Option<(Token, usize)> {
-        if line_suffix.is_empty() {
-            return Some((Token::Newline, 0));
-        }
-
         let consumed = line_suffix
             .iter()
             .take_while(|&&x| is_whitespace_or_semicolon(x))

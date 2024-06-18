@@ -9,7 +9,7 @@ pub struct Parser {}
 pub enum ParserFail {
     ElseIfBlock,
     BracketMismatch,
-    NoMatch, // no tokens matched an AST block
+    UnknownAST, // no tokens matched an AST block
     Other, // TODO: remove this
 }
 type Result<T> = std::result::Result<T, ParserFail>;
@@ -99,7 +99,7 @@ impl Parser {
 
     fn try_parse_set(tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing set");
-        let Token::Other(data) = &tokens[1] else {
+        let Token::Identifier(data) = &tokens[1] else {
             unreachable!();
         };
         let mut consumed = 2; // starts from 2 for the set keyword & the identifier
@@ -159,7 +159,7 @@ impl Parser {
             (Some(Token::KeywordWhen), Some(Token::Identifier(_)), Some(Token::LCurlyBracket)) => {
                 Parser::try_parse_when(tokens)
             }
-            (Some(Token::KeywordSet), Some(Token::Other(_)), ..) => Parser::try_parse_set(tokens),
+            (Some(Token::KeywordSet), Some(Token::Identifier(_)), ..) => Parser::try_parse_set(tokens),
 
             (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
             (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline
@@ -168,7 +168,7 @@ impl Parser {
                 dbg!(&tokens[0]);
                 dbg!(&tokens[1]);
                 dbg!(&tokens[2]);
-                return Err(ParserFail::NoMatch);
+                return Err(ParserFail::UnknownAST);
             } // TODO:
         }?;
         Ok((Some(ast), consumed))

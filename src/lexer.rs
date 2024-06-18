@@ -1,6 +1,5 @@
 use std::io::BufRead;
 
-#[derive(Clone)]
 pub enum Token {
     KeywordSet,      // set
     KeywordProc,     // proc
@@ -150,6 +149,22 @@ impl From<&Token> for Vec<u8> {
             Token::Hash => b"#".to_vec(),
             Token::Newline => b"\n".to_vec(),
             Token::Other(data) => data.to_vec(),
+        }
+    }
+}
+
+impl std::fmt::Debug for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Newline => write!(f, "-\\n"),
+            Self::Other(arg0) => {
+                let s = String::from_utf8(arg0.to_vec()).expect("Failed to utf8 decode");
+                write!(f, "-{}", s)
+            },
+            _ => {
+                let s = String::from_utf8(Vec::from(self)).expect("Failed to utf8 decode");
+                write!(f, " {}", s)
+            }
         }
     }
 }

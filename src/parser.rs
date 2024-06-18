@@ -71,35 +71,43 @@ impl Parser {
     fn try_parse(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         let mut trees = Vec::new();
         let mut total_consumed = 0;
-        while let Some((ast, consumed)) = Parser::try_parse_one(tokens)? {
+        loop {
+            let (ast, consumed) = match Parser::try_parse_one(tokens)? {
+                (None, 0) => break,
+                (None, n) => { tokens = &tokens[n..]; continue; },
+                (Some(ast), consumed) => (ast, consumed),
+            };
+            tokens = &tokens[consumed..];
+            total_consumed += consumed;
             dbg!(&ast);
             trees.push(ast);
-            total_consumed += consumed;
-            tokens = &tokens[consumed..]
         }
         Ok((Ast::Block(trees), total_consumed))
     }
 
-    fn try_parse_one(tokens: &[Token]) -> Result<Option<(Ast, usize)>> {
-        let (ast, consumed) = match (tokens.get(0), tokens.get(1)) {
-            (Some(Token::KeywordIf), Some(Token::LBracket)) => Parser::try_parse_if(tokens),
-            (Some(Token::Hash), Some(Token::Other(comment_text))) => {
+    fn try_parse_one(tokens: &[Token]) -> Result<(Option<Ast>, usize)> {
+        let (ast, consumed) = match (tokens.get(0), tokens.get(1), tokens.get(2)) {
+            (Some(Token::KeywordIf), Some(Token::LBracket), ..) => Parser::try_parse_if(tokens),
+            (Some(Token::Hash), Some(Token::Other(comment_text)), Some(Token::Newline)) => {
                 let ast = Ast::Comment(comment_text.to_vec());
                 Ok((ast, 2))
             }
-            (Some(Token::Newline), _) => Ok((Ast::EmptyLine, 1)),
-            (Some(Token::Other(data)), _) => {
-                let ast = Ast::Statement(Statement::Other { data: data.to_vec() });
+            (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
+            (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)),
+            (Some(Token::Other(data)), ..) => {
+                let ast = Ast::Statement(Statement::Other {
+                    data: data.to_vec(),
+                });
                 Ok((ast, 1))
             }
-            (None, _) => return Ok(None),
+            (None, ..) => return Ok((None, 0)),
             _ => {
                 dbg!(&tokens[0]);
                 dbg!(&tokens[1]);
                 return Err(ParserFail);
             } // TODO:
         }?;
-        Ok(Some((ast, consumed)))
+        Ok((Some(ast), consumed))
     }
 
     fn try_extract_block(tokens: &[Token]) -> Result<&[Token]> {

@@ -10,7 +10,7 @@ pub enum ParserFail {
     ElseIfBlock,
     BracketMismatch,
     UnknownAST, // no tokens matched an AST block
-    Other, // TODO: remove this
+    Other,      // TODO: remove this
 }
 type Result<T> = std::result::Result<T, ParserFail>;
 
@@ -125,6 +125,27 @@ impl Parser {
         ));
     }
 
+    fn try_parse_log(tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing log");
+        let Token::Identifier(data) = &tokens[1] else {
+            unreachable!();
+        };
+        let mut consumed = 3; // starts from 3 for the log keyword, the bucket, the quote
+        let bucket = data.to_vec();
+        let mut value = Vec::new();
+
+        for token in &tokens[3..] {
+            consumed += 1;
+            value.extend(Vec::from(token));
+            // TODO: error on newline
+            if let Token::Quote = token {
+                break;
+            }
+        }
+
+        return Ok((Ast::Statement(Statement::Log { bucket, value }), consumed));
+    }
+
     fn try_parse(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("-> recursive call to try_parse");
         let mut trees = Vec::new();
@@ -155,11 +176,18 @@ impl Parser {
                 let ast = Ast::Comment(comment_text.to_vec());
                 Ok((ast, 2))
             }
-            (Some(Token::KeywordIf), Some(Token::LCurlyBracket), ..) => Parser::try_parse_if(tokens),
+            (Some(Token::KeywordIf), Some(Token::LCurlyBracket), ..) => {
+                Parser::try_parse_if(tokens)
+            }
             (Some(Token::KeywordWhen), Some(Token::Identifier(_)), Some(Token::LCurlyBracket)) => {
                 Parser::try_parse_when(tokens)
             }
-            (Some(Token::KeywordSet), Some(Token::Identifier(_)), ..) => Parser::try_parse_set(tokens),
+            (Some(Token::KeywordSet), Some(Token::Identifier(_)), ..) => {
+                Parser::try_parse_set(tokens)
+            }
+            (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Quote)) => {
+                Parser::try_parse_log(tokens)
+            }
 
             (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
             (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline

@@ -14,13 +14,85 @@ pub enum Token {
     KeywordSnatPool,     // snatpool
     KeywordReturn,       // return
     KeywordWhen,         // when
-    LBracket,            // {
-    RBracket,            // }
+    DoubleColon,         // ::
+    Colon,               // :
+    LCurlyBracket,       // {
+    RCurlyBracket,       // }
+    LSquareBracket,      // [
+    RSquareBracket,      // ]
+    LParen,              // (
+    RParen,              // )
+    LAngleBracket,       // <
+    RAngleBracket,       // >
     Dollar,              // $
+    Quote,               // "
     Hash,                // #
+    Digit(u8),           // [0-9]{1}
+    Minus,               // -
+    Plus,                // +
+    Equals,              // =
+    Modulo,              // %
+    Star,                // *
+    Bang,                // !
+    Ampersand,           // &
     Newline,             // \n
     Identifier(Vec<u8>), // [a-zA-Z0-9_\.]+
     Other(Vec<u8>),      // <lazy>
+}
+
+impl Token {
+    fn is_keyword(&self) -> bool {
+        match self {
+            Token::KeywordSet
+            | Token::KeywordProc
+            | Token::KeywordIf
+            | Token::KeywordElseIf
+            | Token::KeywordElse
+            | Token::KeywordSwitch
+            | Token::KeywordLog
+            | Token::KeywordSnat
+            | Token::KeywordNode
+            | Token::KeywordPool
+            | Token::KeywordSnatPool
+            | Token::KeywordReturn
+            | Token::KeywordWhen => true,
+            _ => false,
+        }
+    }
+
+    fn is_operator(&self) -> bool {
+        match self {
+            Token::DoubleColon
+            | Token::Minus
+            | Token::Plus
+            | Token::Equals
+            | Token::Modulo
+            | Token::Star
+            | Token::Ampersand => true,
+            _ => false,
+        }
+    }
+
+    fn is_symbol(&self) -> bool {
+        match self {
+            Token::Colon | Token::Dollar | Token::Quote | Token::Bang => true,
+            _ => false,
+        }
+    }
+
+    fn is_bracket(&self) -> bool {
+        match self {
+            Token::LCurlyBracket
+            | Token::RCurlyBracket
+            | Token::LSquareBracket
+            | Token::RSquareBracket
+            | Token::LParen
+            | Token::RParen
+            | Token::LAngleBracket
+            | Token::RAngleBracket => true,
+            _ => false,
+        }
+    }
 }
 
 pub struct Lexer {
@@ -82,18 +154,33 @@ impl Lexer {
             x if x.starts_with(b"log") => Some((Token::KeywordLog, 3)),
             x if x.starts_with(b"set") => Some((Token::KeywordSet, 3)),
             x if x.starts_with(b"if") => Some((Token::KeywordIf, 2)),
-            x if x.starts_with(b"{") => Some((Token::LBracket, 1)),
-            x if x.starts_with(b"}") => Some((Token::RBracket, 1)),
+            x if x.starts_with(b"::") => Some((Token::DoubleColon, 2)),
+            x if x.starts_with(b"[") => Some((Token::LSquareBracket, 1)),
+            x if x.starts_with(b"]") => Some((Token::RSquareBracket, 1)),
+            x if x.starts_with(b"{") => Some((Token::LCurlyBracket, 1)),
+            x if x.starts_with(b"}") => Some((Token::RCurlyBracket, 1)),
+            x if x.starts_with(b"(") => Some((Token::LParen, 1)),
+            x if x.starts_with(b")") => Some((Token::RParen, 1)),
+            x if x.starts_with(b"<") => Some((Token::LAngleBracket, 1)),
+            x if x.starts_with(b">") => Some((Token::RAngleBracket, 1)),
             x if x.starts_with(b"#") => Some((Token::Hash, 1)),
             x if x.starts_with(b"$") => Some((Token::Dollar, 1)),
+            x if x.starts_with(b"\"") => Some((Token::Quote, 1)),
+            x if x.starts_with(b"-") => Some((Token::Minus, 1)),
+            x if x.starts_with(b"+") => Some((Token::Plus, 1)),
+            x if x.starts_with(b"=") => Some((Token::Equals, 1)),
+            x if x.starts_with(b"%") => Some((Token::Modulo, 1)),
+            x if x.starts_with(b"*") => Some((Token::Star, 1)),
+            x if x.starts_with(b"!") => Some((Token::Bang, 1)),
+            x if x.starts_with(b"&") => Some((Token::Ampersand, 1)),
+            x if x.starts_with(b":") => Some((Token::Colon, 1)),
             b"" => None,
+            x if x[0].is_ascii_digit() => Some((Token::Digit(x[0]), 1)),
             x => {
                 let identifier = Lexer::extract_identifier(x);
                 let len = identifier.len();
                 if len == 0 {
-                    let rem = line[consumed..].to_vec();
-                    let len = rem.len();
-                    Some((Token::Other(rem), len))
+                    None
                 } else {
                     Some((Token::Identifier(identifier), len))
                 }
@@ -148,13 +235,30 @@ impl From<&Token> for Vec<u8> {
             Token::KeywordSnatPool => b"snatpool".to_vec(),
             Token::KeywordReturn => b"return".to_vec(),
             Token::KeywordWhen => b"when".to_vec(),
-            Token::LBracket => b"{".to_vec(),
-            Token::RBracket => b"}".to_vec(),
+            Token::DoubleColon => b"::".to_vec(),
+            Token::LSquareBracket => b"[".to_vec(),
+            Token::RSquareBracket => b"]".to_vec(),
+            Token::LCurlyBracket => b"{".to_vec(),
+            Token::RCurlyBracket => b"}".to_vec(),
+            Token::LParen => b"(".to_vec(),
+            Token::RParen => b")".to_vec(),
+            Token::LAngleBracket => b"<".to_vec(),
+            Token::RAngleBracket => b">".to_vec(),
             Token::Dollar => b"$".to_vec(),
             Token::Hash => b"#".to_vec(),
             Token::Newline => b"\n".to_vec(),
             Token::Identifier(data) => data.to_vec(),
             Token::Other(data) => data.to_vec(),
+            Token::Quote => b"\"".to_vec(),
+            Token::Digit(d) => vec![*d; 1],
+            Token::Minus => b"-".to_vec(),
+            Token::Plus => b"+".to_vec(),
+            Token::Equals => b"=".to_vec(),
+            Token::Modulo => b"%".to_vec(),
+            Token::Star => b"*".to_vec(),
+            Token::Bang => b"!".to_vec(),
+            Token::Ampersand => b"&".to_vec(),
+            Token::Colon => b":".to_vec(),
         }
     }
 }
@@ -163,12 +267,16 @@ impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = String::from_utf8(Vec::from(self)).expect("Failed to utf8 decode");
         match self {
-            Self::Newline => write!(f, "symbol: \u{001b}[1m\\n\u{001b}[0m"),
-            Self::Other(_) => write!(f, "text: {}", s),
-            Self::LBracket | Self::RBracket => write!(f, "symbol: \u{001b}[34m{}\u{001b}[0m", s),
-            Self::Hash => write!(f, "symbol: \u{001b}[32m{}\u{001b}[0m", s),
-            Self::Dollar => write!(f, "symbol: \u{001b}[33m{}\u{001b}[0m", s),
-            _ => write!(f, "keyword: \u{001b}[31m{}\u{001b}[0m", s),
+            x if x.is_keyword()  => write!(f, "kwrd:  \u{001b}[31m{}\u{001b}[0m", s),
+            x if x.is_symbol()   => write!(f, "sym:   \u{001b}[32m{}\u{001b}[0m", s),
+            x if x.is_operator() => write!(f, "op:    \u{001b}[33m{}\u{001b}[0m", s),
+            x if x.is_bracket()  => write!(f, "brkt:  \u{001b}[34m{}\u{001b}[0m", s),
+            Self::Newline        => write!(f, "lf:    \u{001b}[1m\\n\u{001b}[0m"),
+            Self::Other(_)       => write!(f, "other: \u{001b}[36m{}\u{001b}[0m", s),
+            Self::Identifier(_)  => write!(f, "ident: {}", s),
+            Self::Digit(_)       => write!(f, "digit: \u{001b}[35m{}\u{001b}[0m", s),
+            Self::Hash           => write!(f, "hash:  \u{001b}[32m{}\u{001b}[0m", s),
+            _ => { println!("{}", s); unreachable!() }
         }
     }
 }

@@ -20,10 +20,6 @@ impl Parser {
     }
 
     pub fn parse(self, tokens: &[Token]) -> Result<Ast> {
-        let cnt_lbracket = tokens.iter().filter(|&x| matches!(x, Token::LBracket)).count();
-        let cnt_rbracket = tokens.iter().filter(|&x| matches!(x, Token::RBracket)).count();
-        dbg!(cnt_lbracket);
-        dbg!(cnt_rbracket);
         Ok(Parser::try_parse(tokens)?.0)
     }
 
@@ -46,7 +42,7 @@ impl Parser {
         condition_body_clauses.push((if_condition, body_if_true));
 
         let maybe_block_if_false = match (tokens.get(0), tokens.get(1)) {
-            (Some(Token::KeywordElseIf), Some(Token::LBracket)) => {
+            (Some(Token::KeywordElseIf), Some(Token::LCurlyBracket)) => {
                 let (ast, consumed_rem) = Parser::try_parse_if(&tokens[1..])?;
                 consumed += consumed_rem + 1; // +1 for the elseif keyword
                 match ast {
@@ -60,7 +56,7 @@ impl Parser {
                     _ => return Err(ParserFail::ElseIfBlock),
                 }
             }
-            (Some(Token::KeywordElse), Some(Token::LBracket)) => {
+            (Some(Token::KeywordElse), Some(Token::LCurlyBracket)) => {
                 let else_body_tokens = Parser::try_extract_block(tokens)?;
                 consumed += else_body_tokens.len() + 1 + 2; // +1 for the else keyword, +2 for brackets
                 let (block_if_false, _) = Parser::try_parse(else_body_tokens)?;
@@ -159,8 +155,8 @@ impl Parser {
                 let ast = Ast::Comment(comment_text.to_vec());
                 Ok((ast, 2))
             }
-            (Some(Token::KeywordIf), Some(Token::LBracket), ..) => Parser::try_parse_if(tokens),
-            (Some(Token::KeywordWhen), Some(Token::Identifier(_)), Some(Token::LBracket)) => {
+            (Some(Token::KeywordIf), Some(Token::LCurlyBracket), ..) => Parser::try_parse_if(tokens),
+            (Some(Token::KeywordWhen), Some(Token::Identifier(_)), Some(Token::LCurlyBracket)) => {
                 Parser::try_parse_when(tokens)
             }
             (Some(Token::KeywordSet), Some(Token::Other(_)), ..) => Parser::try_parse_set(tokens),
@@ -182,8 +178,8 @@ impl Parser {
         let mut depth = 0;
         for (idx, token) in tokens.iter().enumerate() {
             match token {
-                Token::LBracket => depth += 1,
-                Token::RBracket => depth -= 1,
+                Token::LCurlyBracket => depth += 1,
+                Token::RCurlyBracket => depth -= 1,
                 _ => {}
             }
             if depth == 0 {

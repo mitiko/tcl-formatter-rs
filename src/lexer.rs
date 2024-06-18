@@ -166,16 +166,14 @@ impl From<&Token> for Vec<u8> {
 
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = String::from_utf8(Vec::from(self)).expect("Failed to utf8 decode");
         match self {
-            Self::Newline => write!(f, "-\\n"),
-            Self::Other(arg0) => {
-                let s = String::from_utf8(arg0.to_vec()).expect("Failed to utf8 decode");
-                write!(f, "-{}", s)
-            }
-            _ => {
-                let s = String::from_utf8(Vec::from(self)).expect("Failed to utf8 decode");
-                write!(f, " {}", s)
-            }
+            Self::Newline => write!(f, "\u{001b}[1m\\n\u{001b}[0m"),
+            Self::Other(_) => write!(f, "{}", s),
+            Self::LBracket | Self::RBracket => write!(f, "\u{001b}[34m{}\u{001b}[0m", s),
+            Self::Hash => write!(f, "\u{001b}[32m{}\u{001b}[0m", s),
+            Self::Dollar => write!(f, "\u{001b}[33m{}\u{001b}[0m", s),
+            _ => write!(f, "\u{001b}[31m{}\u{001b}[0m", s),
         }
     }
 }

@@ -9,7 +9,7 @@ pub struct Parser {}
 pub enum ParserFail {
     ElseIfBlock,
     SwitchBlock,
-    NodeStatement,
+    Expression,
     BracketMismatch,
     NoNewline,  // expected newline
     UnknownAST, // no tokens matched an AST block
@@ -161,20 +161,37 @@ impl Parser {
         println!("parsing node statement");
         let mut consumed = 1;
 
-        let rem_tokens = Parser::try_extract_until_newline(tokens)?;
+        let mut rem_tokens = Parser::try_extract_until_newline(&tokens[1..])?;
         consumed += rem_tokens.len() + 1;
-        let data = Parser::parse_vec(rem_tokens);
 
-        // TODO: fix
-        let mut iter = data.split(|&x| x == b' ');
-        dbg!(String::from_utf8_lossy(&data));
-        let ip_address = iter.next().ok_or(ParserFail::NodeStatement)?.to_vec();
-        let port = iter.next().ok_or(ParserFail::NodeStatement)?.to_vec();
+        let (ip_address, n) = Parser::try_parse_expression(&rem_tokens)?;
+        rem_tokens = &rem_tokens[n..];
+
+        let (port, n) = Parser::try_parse_expression(&rem_tokens)?;
+        rem_tokens = &rem_tokens[n..];
+
+        assert!(rem_tokens.is_empty());
 
         return Ok((
             Ast::Statement(Statement::Node { ip_address, port }),
             consumed,
         ));
+    }
+
+    fn try_parse_expression(tokens: &[Token]) -> Result<(Vec<u8>, usize)> {
+        let mut consumed = 0;
+        let data = match tokens.get(0) {
+            Some(Token::LSquareBracket) => {
+                let body = Parser::try_extract_square_block(tokens)?;
+                consumed += body.len() + 2;
+                Parser::parse_vec(body)
+            },
+            _ => {
+                dbg!(String::from_utf8_lossy(&Parser::parse_vec(tokens)));
+                return Err(ParserFail::Expression);
+            }
+        };
+        Ok((data, consumed))
     }
 
     fn try_parse_switch(mut tokens: &[Token]) -> Result<(Ast, usize)> {
@@ -339,6 +356,22 @@ impl Parser {
             match token {
                 Token::LCurlyBracket => depth += 1,
                 Token::RCurlyBracket => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 {
+                return Ok(&tokens[1..idx]);
+            }
+        }
+        Err(ParserFail::BracketMismatch)
+    }
+
+    fn try_extract_square_block(tokens: &[Token]) -> Result<&[Token]> {
+        assert!(matches!(tokens.get(0), Some(Token::LSquareBracket)));
+        let mut depth = 0;
+        for (idx, token) in tokens.iter().enumerate() {
+            match token {
+                Token::LSquareBracket => depth += 1,
+                Token::RSquareBracket => depth -= 1,
                 _ => {}
             }
             if depth == 0 {

@@ -117,10 +117,7 @@ impl Parser {
 
         let rem_tokens = Parser::try_extract_until_newline(&tokens[2..])?;
         consumed += rem_tokens.len() + 1;
-
-        for token in rem_tokens {
-            value.extend(Vec::from(token));
-        }
+        value.extend(Parser::parse_vec(rem_tokens));
 
         return Ok((
             Ast::Statement(Statement::Set { identifier, value }),
@@ -152,14 +149,10 @@ impl Parser {
     fn try_parse_statement(tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing other statement");
         let mut consumed = 0;
-        let mut data = Vec::new();
 
         let statement_tokens = Parser::try_extract_until_newline(tokens)?;
         consumed += statement_tokens.len() + 1;
-
-        for token in statement_tokens {
-            data.extend(Vec::from(token));
-        }
+        let data = Parser::parse_vec(statement_tokens);
 
         return Ok((Ast::Statement(Statement::Other { data }), consumed));
     }
@@ -167,14 +160,10 @@ impl Parser {
     fn try_parse_node(tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing node statement");
         let mut consumed = 1;
-        let mut data = Vec::new();
 
         let rem_tokens = Parser::try_extract_until_newline(tokens)?;
         consumed += rem_tokens.len() + 1;
-
-        for token in rem_tokens {
-            data.extend(Vec::from(token));
-        }
+        let data = Parser::parse_vec(rem_tokens);
 
         // TODO: fix
         let mut iter = data.split(|&x| x == b' ');
@@ -217,29 +206,25 @@ impl Parser {
                 (Some(Token::Newline), ..) => tokens = &tokens[1..],
                 (
                     Some(Token::Quote),
-                    Some(Token::Identifier(value)),
+                    Some(Token::Identifier(_)),
                     Some(Token::Quote),
                     Some(Token::Minus),
                     Some(Token::Newline),
                 ) => {
                     // fallthrough
-                    let mut v = Vec::from(&Token::Quote);
-                    v.extend(value);
-                    v.extend(Vec::from(&Token::Quote));
+                    let v = Parser::parse_vec(&tokens[..3]);
                     tokens = &tokens[5..];
                     value_block_or_fallthrough_vec.push((v, None));
                 }
                 (
                     Some(Token::Quote),
-                    Some(Token::Identifier(value)),
+                    Some(Token::Identifier(_)),
                     Some(Token::Quote),
                     Some(Token::LCurlyBracket),
                     ..,
                 ) => {
                     // no fallthrough
-                    let mut v = Vec::from(&Token::Quote);
-                    v.extend(value);
-                    v.extend(Vec::from(&Token::Quote));
+                    let v = Parser::parse_vec(&tokens[..3]);
                     tokens = &tokens[3..];
                     let body_tokens = Parser::try_extract_block(tokens)?;
                     tokens = &tokens[body_tokens.len() + 2..];

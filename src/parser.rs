@@ -148,6 +148,21 @@ impl Parser {
         return Ok((Ast::Statement(Statement::Log { bucket, value }), consumed));
     }
 
+    fn try_parse_statement(tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing other statement");
+        let mut consumed = 0;
+        let mut data = Vec::new();
+        for token in tokens {
+            consumed += 1;
+            data.extend(Vec::from(token));
+            if let Token::Newline = token {
+                break;
+            }
+        }
+
+        return Ok((Ast::Statement(Statement::Other { data }), consumed));
+    }
+
     fn try_parse_switch(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing switch");
         let condition = {
@@ -285,6 +300,12 @@ impl Parser {
                 Some(Token::LCurlyBracket),
                 ..,
             ) => Parser::try_parse_switch(tokens),
+            (
+                Some(Token::Identifier(group)),
+                Some(Token::DoubleColon),
+                Some(Token::Identifier(_)),
+                ..,
+            ) if group == b"UDP" || group == b"GTP" => Parser::try_parse_statement(tokens),
 
             (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
             (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline

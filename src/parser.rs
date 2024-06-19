@@ -200,11 +200,15 @@ impl Parser {
     }
 
     fn try_parse_expression(tokens: &[Token]) -> Result<(Vec<u8>, usize)> {
-        match tokens.get(0) {
-            Some(Token::Identifier(data)) => Ok((data.to_vec(), 1)),
-            Some(Token::LSquareBracket) => {
+        match (tokens.get(0), tokens.get(1)) {
+            (Some(Token::Identifier(data)), ..) => Ok((data.to_vec(), 1)),
+            (Some(Token::LSquareBracket), ..) => {
                 let body = Parser::try_extract_square_block(tokens)?;
                 Ok((Parser::parse_vec(&tokens[..body.len() + 2]), body.len() + 2))
+            },
+            (Some(Token::Dollar), Some(Token::LCurlyBracket)) => {
+                let body = Parser::try_extract_block(&tokens[1..])?;
+                Ok((Parser::parse_vec(&tokens[..body.len() + 3]), body.len() + 3))
             },
             _ => {
                 dbg!(&tokens[0]);
@@ -313,6 +317,10 @@ impl Parser {
             tokens = &tokens[consumed..];
             total_consumed += consumed;
             dbg!(&ast);
+            if let Ast::Statement(Statement::Node { ip_address, port }) = &ast {
+                dbg!(String::from_utf8_lossy(ip_address));
+                dbg!(String::from_utf8_lossy(port));
+            };
             trees.push(ast);
         }
         Ok((Ast::Block(trees), total_consumed))

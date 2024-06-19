@@ -9,6 +9,7 @@ pub struct Parser {}
 pub enum ParserFail {
     ElseIfBlock,
     SwitchBlock,
+    NodeStatement,
     BracketMismatch,
     UnknownAST, // no tokens matched an AST block
     Other,      // TODO: remove this
@@ -163,6 +164,25 @@ impl Parser {
         return Ok((Ast::Statement(Statement::Other { data }), consumed));
     }
 
+    fn try_parse_node(tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing node statement");
+        let mut consumed = 0;
+        let mut data = Vec::new();
+        for token in tokens {
+            consumed += 1;
+            data.extend(Vec::from(token));
+            if let Token::Newline = token {
+                break;
+            }
+        }
+        let mut iter = data.split(|&x| x == b' ');
+        dbg!(String::from_utf8_lossy(&data));
+        let ip_address = iter.next().ok_or(ParserFail::NodeStatement)?.to_vec();
+        let port = iter.next().ok_or(ParserFail::NodeStatement)?.to_vec();
+
+        return Ok((Ast::Statement(Statement::Node { ip_address, port }), consumed));
+    }
+
     fn try_parse_switch(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing switch");
         let condition = {
@@ -290,6 +310,7 @@ impl Parser {
             (Some(Token::KeywordSet), Some(Token::Identifier(_)), ..) => {
                 Parser::try_parse_set(tokens)
             }
+            (Some(Token::KeywordNode), ..) => Parser::try_parse_node(tokens),
             (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Quote), ..) => {
                 Parser::try_parse_log(tokens)
             }

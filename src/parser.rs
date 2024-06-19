@@ -11,6 +11,7 @@ pub enum ParserFail {
     SwitchBlock,
     NodeStatement,
     BracketMismatch,
+    NoNewline,  // expected newline
     UnknownAST, // no tokens matched an AST block
     Other,      // TODO: remove this
 }
@@ -114,12 +115,11 @@ impl Parser {
             .map(|x| x.to_vec())
             .unwrap_or(Vec::new());
 
-        for token in &tokens[2..] {
-            consumed += 1;
+        let rem_tokens = Parser::try_extract_until_newline(&tokens[2..])?;
+        consumed += rem_tokens.len() + 1;
+
+        for token in rem_tokens {
             value.extend(Vec::from(token));
-            if let Token::Newline = token {
-                break;
-            }
         }
 
         return Ok((
@@ -153,12 +153,12 @@ impl Parser {
         println!("parsing other statement");
         let mut consumed = 0;
         let mut data = Vec::new();
-        for token in tokens {
-            consumed += 1;
+
+        let statement_tokens = Parser::try_extract_until_newline(tokens)?;
+        consumed += statement_tokens.len() + 1;
+
+        for token in statement_tokens {
             data.extend(Vec::from(token));
-            if let Token::Newline = token {
-                break;
-            }
         }
 
         return Ok((Ast::Statement(Statement::Other { data }), consumed));
@@ -166,21 +166,26 @@ impl Parser {
 
     fn try_parse_node(tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing node statement");
-        let mut consumed = 0;
+        let mut consumed = 1;
         let mut data = Vec::new();
-        for token in tokens {
-            consumed += 1;
+
+        let rem_tokens = Parser::try_extract_until_newline(tokens)?;
+        consumed += rem_tokens.len() + 1;
+
+        for token in rem_tokens {
             data.extend(Vec::from(token));
-            if let Token::Newline = token {
-                break;
-            }
         }
+
+        // TODO: fix
         let mut iter = data.split(|&x| x == b' ');
         dbg!(String::from_utf8_lossy(&data));
         let ip_address = iter.next().ok_or(ParserFail::NodeStatement)?.to_vec();
         let port = iter.next().ok_or(ParserFail::NodeStatement)?.to_vec();
 
-        return Ok((Ast::Statement(Statement::Node { ip_address, port }), consumed));
+        return Ok((
+            Ast::Statement(Statement::Node { ip_address, port }),
+            consumed,
+        ));
     }
 
     fn try_parse_switch(mut tokens: &[Token]) -> Result<(Ast, usize)> {
@@ -356,6 +361,21 @@ impl Parser {
             }
         }
         Err(ParserFail::BracketMismatch)
+    }
+
+    fn try_extract_until_newline(tokens: &[Token]) -> Result<&[Token]> {
+        let start = 0;
+        let end = tokens
+            .iter()
+            .enumerate()
+            .take_while(|(_, t)| !matches!(t, Token::Newline))
+            .last()
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
+        match tokens.get(end + 1) {
+            Some(Token::Newline) => Ok(&tokens[start..=end]),
+            _ => Err(ParserFail::NoNewline),
+        }
     }
 
     fn parse_vec(tokens: &[Token]) -> Vec<u8> {

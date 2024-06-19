@@ -10,8 +10,7 @@ use lexer::*;
 use parser::*;
 
 fn main() -> io::Result<()> {
-    let path =
-        "/home/drusev@efellows.bg/Documents/Projects/a1-gtp-proxy/src/GTP-C-clientAcceptV5.tcl";
+    let path = "../a1-gtp-proxy/src/GTP-C-clientAcceptV5.tcl";
     let buf = std::fs::read(path)?;
     let tokens = Lexer::new().lex(buf);
     // print all tokens

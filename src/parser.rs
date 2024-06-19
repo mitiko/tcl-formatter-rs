@@ -8,6 +8,7 @@ pub struct Parser {}
 #[derive(Debug)]
 pub enum ParserFail {
     ElseIfBlock,
+    SwitchBlock,
     BracketMismatch,
     UnknownAST, // no tokens matched an AST block
     Other,      // TODO: remove this
@@ -104,6 +105,7 @@ impl Parser {
         };
         let mut consumed = 2; // starts from 2 for the set keyword & the identifier
 
+        // TODO: fix space iterator logic, as no spaces should be in data
         let mut space_iterator = data.split(|&x| x == b' ');
         let identifier = space_iterator.next().ok_or(ParserFail::Other)?.to_vec();
         let mut value = space_iterator
@@ -146,6 +148,91 @@ impl Parser {
         return Ok((Ast::Statement(Statement::Log { bucket, value }), consumed));
     }
 
+    fn try_parse_switch(mut tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing switch");
+        let condition = {
+            let (Token::Dollar, Token::Identifier(data)) = (&tokens[1], &tokens[2]) else {
+                unreachable!();
+            };
+            let mut value = Vec::from(&tokens[1]);
+            value.extend(data);
+            value
+        };
+        let mut consumed = 4; // starts from 4 for the switch keyword, dollar, identifier, curly bracket
+        tokens = &tokens[3..];
+
+        tokens = Parser::try_extract_block(tokens)?;
+        consumed += tokens.len() + 2;
+
+        let mut value_block_or_fallthrough_vec = Vec::new();
+
+        while !tokens.is_empty() {
+            match (
+                tokens.get(0),
+                tokens.get(1),
+                tokens.get(2),
+                tokens.get(3),
+                tokens.get(4),
+            ) {
+                (Some(Token::Newline), ..) => tokens = &tokens[1..],
+                (
+                    Some(Token::Quote),
+                    Some(Token::Identifier(value)),
+                    Some(Token::Quote),
+                    Some(Token::Minus),
+                    Some(Token::Newline),
+                ) => {
+                    // fallthrough
+                    let mut v = Vec::from(&Token::Quote);
+                    v.extend(value);
+                    v.extend(Vec::from(&Token::Quote));
+                    tokens = &tokens[5..];
+                    value_block_or_fallthrough_vec.push((v, None));
+                }
+                (
+                    Some(Token::Quote),
+                    Some(Token::Identifier(value)),
+                    Some(Token::Quote),
+                    Some(Token::LCurlyBracket),
+                    ..,
+                ) => {
+                    // no fallthrough
+                    let mut v = Vec::from(&Token::Quote);
+                    v.extend(value);
+                    v.extend(Vec::from(&Token::Quote));
+                    tokens = &tokens[3..];
+                    let body_tokens = Parser::try_extract_block(tokens)?;
+                    tokens = &tokens[body_tokens.len() + 2..];
+                    let (body, _) = Parser::try_parse(body_tokens)?;
+                    value_block_or_fallthrough_vec.push((v, Some(body)));
+                }
+                (Some(Token::Identifier(value)), Some(Token::LCurlyBracket), ..)
+                    if value == b"default" =>
+                {
+                    // default
+                    // TODO: assert this is the last condition-block
+                    tokens = &tokens[1..];
+                    let body_tokens = Parser::try_extract_block(tokens)?;
+                    tokens = &tokens[body_tokens.len() + 2..];
+                    let (body, _) = Parser::try_parse(body_tokens)?;
+                    value_block_or_fallthrough_vec.push((value.to_vec(), Some(body)));
+                }
+                _ => {
+                    dbg!(&tokens[0]);
+                    return Err(ParserFail::SwitchBlock);
+                }
+            }
+        }
+
+        return Ok((
+            Ast::Switch {
+                condition,
+                value_block_or_fallthrough_vec,
+            },
+            consumed,
+        ));
+    }
+
     fn try_parse(mut tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("-> recursive call to try_parse");
         let mut trees = Vec::new();
@@ -170,8 +257,8 @@ impl Parser {
     }
 
     fn try_parse_one(tokens: &[Token]) -> Result<(Option<Ast>, usize)> {
-        let (ast, consumed) = match (tokens.get(0), tokens.get(1), tokens.get(2)) {
-            (Some(Token::Hash), Some(Token::Other(comment_text)), Some(Token::Newline)) => {
+        let (ast, consumed) = match (tokens.get(0), tokens.get(1), tokens.get(2), tokens.get(3)) {
+            (Some(Token::Hash), Some(Token::Other(comment_text)), Some(Token::Newline), ..) => {
                 // comment
                 let ast = Ast::Comment(comment_text.to_vec());
                 Ok((ast, 2))
@@ -179,15 +266,25 @@ impl Parser {
             (Some(Token::KeywordIf), Some(Token::LCurlyBracket), ..) => {
                 Parser::try_parse_if(tokens)
             }
-            (Some(Token::KeywordWhen), Some(Token::Identifier(_)), Some(Token::LCurlyBracket)) => {
-                Parser::try_parse_when(tokens)
-            }
+            (
+                Some(Token::KeywordWhen),
+                Some(Token::Identifier(_)),
+                Some(Token::LCurlyBracket),
+                ..,
+            ) => Parser::try_parse_when(tokens),
             (Some(Token::KeywordSet), Some(Token::Identifier(_)), ..) => {
                 Parser::try_parse_set(tokens)
             }
-            (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Quote)) => {
+            (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Quote), ..) => {
                 Parser::try_parse_log(tokens)
             }
+            (
+                Some(Token::KeywordSwitch),
+                Some(Token::Dollar),
+                Some(Token::Identifier(_)),
+                Some(Token::LCurlyBracket),
+                ..,
+            ) => Parser::try_parse_switch(tokens),
 
             (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
             (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline
@@ -196,6 +293,7 @@ impl Parser {
                 dbg!(&tokens[0]);
                 dbg!(&tokens[1]);
                 dbg!(&tokens[2]);
+                dbg!(&tokens[3]);
                 return Err(ParserFail::UnknownAST);
             } // TODO:
         }?;
@@ -203,6 +301,7 @@ impl Parser {
     }
 
     fn try_extract_block(tokens: &[Token]) -> Result<&[Token]> {
+        assert!(matches!(tokens.get(0), Some(Token::LCurlyBracket)));
         let mut depth = 0;
         for (idx, token) in tokens.iter().enumerate() {
             match token {

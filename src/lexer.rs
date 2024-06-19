@@ -27,7 +27,6 @@ pub enum Token {
     Dollar,              // $
     Quote,               // "
     Hash,                // #
-    Digit(u8),           // [0-9]{1}
     Minus,               // -
     Plus,                // +
     Equals,              // =
@@ -175,7 +174,6 @@ impl Lexer {
             x if x.starts_with(b"&") => Some((Token::Ampersand, 1)),
             x if x.starts_with(b":") => Some((Token::Colon, 1)),
             b"" => None,
-            x if x[0].is_ascii_digit() => Some((Token::Digit(x[0]), 1)),
             x => {
                 let identifier = Lexer::extract_identifier(x);
                 let len = identifier.len();
@@ -250,7 +248,6 @@ impl From<&Token> for Vec<u8> {
             Token::Identifier(data) => data.to_vec(),
             Token::Other(data) => data.to_vec(),
             Token::Quote => b"\"".to_vec(),
-            Token::Digit(d) => vec![*d; 1],
             Token::Minus => b"-".to_vec(),
             Token::Plus => b"+".to_vec(),
             Token::Equals => b"=".to_vec(),
@@ -274,7 +271,6 @@ impl std::fmt::Debug for Token {
             Self::Newline        => write!(f, "lf:    \u{001b}[1m\\n\u{001b}[0m"),
             Self::Other(_)       => write!(f, "other: \u{001b}[36m{}\u{001b}[0m", s),
             Self::Identifier(_)  => write!(f, "ident: {}", s),
-            Self::Digit(_)       => write!(f, "digit: \u{001b}[35m{}\u{001b}[0m", s),
             Self::Hash           => write!(f, "hash:  \u{001b}[32m{}\u{001b}[0m", s),
             _ => { println!("{}", s); unreachable!() }
         }

@@ -178,20 +178,40 @@ impl Parser {
         ));
     }
 
+    fn try_parse_snat(tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing snat statement");
+        let mut consumed = 1;
+
+        let mut rem_tokens = Parser::try_extract_until_newline(&tokens[1..])?;
+        consumed += rem_tokens.len() + 1;
+
+        let (ip_address, n) = Parser::try_parse_expression(&rem_tokens)?;
+        rem_tokens = &rem_tokens[n..];
+
+        let (port, n) = Parser::try_parse_expression(&rem_tokens)?;
+        rem_tokens = &rem_tokens[n..];
+
+        assert!(rem_tokens.is_empty());
+
+        return Ok((
+            Ast::Statement(Statement::Snat { ip_address, port }),
+            consumed,
+        ));
+    }
+
     fn try_parse_expression(tokens: &[Token]) -> Result<(Vec<u8>, usize)> {
-        let mut consumed = 0;
-        let data = match tokens.get(0) {
+        match tokens.get(0) {
+            Some(Token::Identifier(data)) => Ok((data.to_vec(), 1)),
             Some(Token::LSquareBracket) => {
                 let body = Parser::try_extract_square_block(tokens)?;
-                consumed += body.len() + 2;
-                Parser::parse_vec(body)
+                Ok((Parser::parse_vec(&tokens[..body.len() + 2]), body.len() + 2))
             },
             _ => {
+                dbg!(&tokens[0]);
                 dbg!(String::from_utf8_lossy(&Parser::parse_vec(tokens)));
                 return Err(ParserFail::Expression);
             }
-        };
-        Ok((data, consumed))
+        }
     }
 
     fn try_parse_switch(mut tokens: &[Token]) -> Result<(Ast, usize)> {
@@ -318,6 +338,7 @@ impl Parser {
                 Parser::try_parse_set(tokens)
             }
             (Some(Token::KeywordNode), ..) => Parser::try_parse_node(tokens),
+            (Some(Token::KeywordSnat), ..) => Parser::try_parse_snat(tokens),
             (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Quote), ..) => {
                 Parser::try_parse_log(tokens)
             }

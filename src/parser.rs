@@ -46,7 +46,7 @@ impl Parser {
 
         let maybe_block_if_false = match (tokens.get(0), tokens.get(1)) {
             (Some(Token::KeywordElseIf), Some(Token::LCurlyBracket)) => {
-                let (ast, consumed_rem) = Parser::try_parse_if(&tokens[1..])?;
+                let (ast, consumed_rem) = Parser::try_parse_if(tokens)?;
                 consumed += consumed_rem + 1; // +1 for the elseif keyword
                 match ast {
                     Ast::If {

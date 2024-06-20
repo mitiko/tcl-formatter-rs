@@ -131,7 +131,6 @@ impl Lexer {
                     return Ok(());
                 }
                 (Some(Token::KeywordLog), Some(Token::Identifier(_))) => {
-                    dbg!(String::from_utf8_lossy(line));
                     let (value, consumed) =
                         Lexer::extract_string(line).ok_or(LexerFail::ExpectedString)?;
                     self.tokens.push(Token::Other(value.to_vec()));

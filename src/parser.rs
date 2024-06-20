@@ -127,21 +127,15 @@ impl Parser {
 
     fn try_parse_log(tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing log");
-        let Token::Identifier(data) = &tokens[1] else {
+        let Some(Token::Identifier(data)) = tokens.get(1) else {
             unreachable!();
         };
-        let mut consumed = 3; // starts from 3 for the log keyword, the bucket, the quote
+        let consumed = 3; // starts from 3 for the log keyword, the bucket, the value
+        let Some(Token::Other(content)) = tokens.get(2) else {
+            unreachable!();
+        };
         let bucket = data.to_vec();
-        let mut value = Vec::new();
-
-        for token in &tokens[3..] {
-            consumed += 1;
-            value.extend(Vec::from(token));
-            // TODO: error on newline
-            if let Token::Quote = token {
-                break;
-            }
-        }
+        let value = content.to_vec();
 
         return Ok((Ast::Statement(Statement::Log { bucket, value }), consumed));
     }
@@ -347,7 +341,7 @@ impl Parser {
             }
             (Some(Token::KeywordNode), ..) => Parser::try_parse_node(tokens),
             (Some(Token::KeywordSnat), ..) => Parser::try_parse_snat(tokens),
-            (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Quote), ..) => {
+            (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Other(_)), ..) => {
                 Parser::try_parse_log(tokens)
             }
             (

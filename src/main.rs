@@ -12,7 +12,7 @@ use parser::*;
 fn main() -> io::Result<()> {
     let path = "../a1-gtp-proxy/src/GTP-C-clientAcceptV5.tcl";
     let buf = std::fs::read(path)?;
-    let tokens = Lexer::new().lex(buf);
+    let tokens = Lexer::new().lex(buf).expect("Failed to lex");
     // print all tokens
     // for token in tokens.iter() {
     //     println!("{:?}", token);

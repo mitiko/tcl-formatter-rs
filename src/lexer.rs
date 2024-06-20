@@ -94,6 +94,13 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
+pub enum LexerFail {
+    ExpectedString, // when parsing log
+}
+
+type Result<T> = std::result::Result<T, LexerFail>;
+
 pub struct Lexer {
     tokens: Vec<Token>,
 }
@@ -103,24 +110,32 @@ impl Lexer {
         Self { tokens: Vec::new() }
     }
 
-    pub fn lex(mut self, buf: Vec<u8>) -> Vec<Token> {
+    pub fn lex(mut self, buf: Vec<u8>) -> Result<Vec<Token>> {
         for line in buf.lines() {
-            self.lex_line(&Lexer::normalize(line.unwrap().as_bytes())); // lstrip & rstrip
+            self.lex_line(&Lexer::normalize(line.unwrap().as_bytes()))?; // lstrip & rstrip
             self.tokens.push(Token::Newline);
         }
 
-        self.tokens
+        Ok(self.tokens)
     }
 
-    fn lex_line(&mut self, mut line: &[u8]) {
+    fn lex_line(&mut self, mut line: &[u8]) -> Result<()> {
         while let Some((token, consumed)) = self.try_lex(line) {
             self.tokens.push(token);
             line = &line[consumed..];
 
-            match self.tokens.last().unwrap() {
-                Token::Hash => {
+            let n = self.tokens.len().saturating_sub(1);
+            match (self.tokens.get(n.saturating_sub(1)), self.tokens.get(n)) {
+                (_, Some(Token::Hash)) => {
                     self.tokens.push(Token::Other(Lexer::normalize(&line))); // lstrip only
-                    return;
+                    return Ok(());
+                }
+                (Some(Token::KeywordLog), Some(Token::Identifier(_))) => {
+                    dbg!(String::from_utf8_lossy(line));
+                    let (value, consumed) =
+                        Lexer::extract_string(line).ok_or(LexerFail::ExpectedString)?;
+                    self.tokens.push(Token::Other(value.to_vec()));
+                    line = &line[consumed..];
                 }
                 _ => {}
             }
@@ -131,6 +146,7 @@ impl Lexer {
             dbg!(String::from_utf8_lossy(line));
             unreachable!();
         }
+        Ok(())
     }
 
     fn try_lex(&self, line: &[u8]) -> Option<(Token, usize)> {
@@ -208,6 +224,21 @@ impl Lexer {
             .cloned()
             .collect()
     }
+
+    fn extract_string(mut data: &[u8]) -> Option<(&[u8], usize)> {
+        let consumed = data
+            .iter()
+            .take_while(|&&x| is_whitespace_or_semicolon(x))
+            .count();
+        data = &data[consumed..];
+
+        let Some(b'"') = data.get(0) else { return None };
+        let inside_len = data.iter().skip(1).take_while(|&&c| c != b'"').count();
+        match data.get(inside_len + 1) {
+            Some(b'"') => Some((&data[..=inside_len + 1], consumed + inside_len + 2)),
+            _ => None,
+        }
+    }
 }
 
 fn is_whitespace_or_semicolon(symbol: u8) -> bool {
@@ -264,15 +295,18 @@ impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = String::from_utf8(Vec::from(self)).expect("Failed to utf8 decode");
         match self {
-            x if x.is_keyword()  => write!(f, "kwrd:  \u{001b}[31m{}\u{001b}[0m", s),
-            x if x.is_symbol()   => write!(f, "sym:   \u{001b}[32m{}\u{001b}[0m", s),
+            x if x.is_keyword() => write!(f, "kwrd:  \u{001b}[31m{}\u{001b}[0m", s),
+            x if x.is_symbol() => write!(f, "sym:   \u{001b}[32m{}\u{001b}[0m", s),
             x if x.is_operator() => write!(f, "op:    \u{001b}[33m{}\u{001b}[0m", s),
-            x if x.is_bracket()  => write!(f, "brkt:  \u{001b}[34m{}\u{001b}[0m", s),
-            Self::Newline        => write!(f, "lf:    \u{001b}[1m\\n\u{001b}[0m"),
-            Self::Other(_)       => write!(f, "other: \u{001b}[36m{}\u{001b}[0m", s),
-            Self::Identifier(_)  => write!(f, "ident: {}", s),
-            Self::Hash           => write!(f, "hash:  \u{001b}[32m{}\u{001b}[0m", s),
-            _ => { println!("{}", s); unreachable!() }
+            x if x.is_bracket() => write!(f, "brkt:  \u{001b}[34m{}\u{001b}[0m", s),
+            Self::Newline => write!(f, "lf:    \u{001b}[1m\\n\u{001b}[0m"),
+            Self::Other(_) => write!(f, "other: \u{001b}[36m{}\u{001b}[0m", s),
+            Self::Identifier(_) => write!(f, "ident: {}", s),
+            Self::Hash => write!(f, "hash:  \u{001b}[32m{}\u{001b}[0m", s),
+            _ => {
+                println!("{}", s);
+                unreachable!()
+            }
         }
     }
 }

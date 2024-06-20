@@ -199,11 +199,11 @@ impl Parser {
             (Some(Token::LSquareBracket), ..) => {
                 let body = Parser::try_extract_square_block(tokens)?;
                 Ok((Parser::parse_vec(&tokens[..body.len() + 2]), body.len() + 2))
-            },
+            }
             (Some(Token::Dollar), Some(Token::LCurlyBracket)) => {
                 let body = Parser::try_extract_block(&tokens[1..])?;
                 Ok((Parser::parse_vec(&tokens[..body.len() + 3]), body.len() + 3))
-            },
+            }
             _ => {
                 dbg!(&tokens[0]);
                 dbg!(String::from_utf8_lossy(&Parser::parse_vec(tokens)));
@@ -353,6 +353,9 @@ impl Parser {
                 Some(Token::Identifier(_)),
                 ..,
             ) if group == b"UDP" || group == b"GTP" => Parser::try_parse_statement(tokens),
+            (Some(Token::KeywordReturn), Some(Token::Newline), ..) => {
+                Ok((Ast::Statement(Statement::Return { value: None }), 2))
+            }
 
             (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
             (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline

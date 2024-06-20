@@ -60,7 +60,7 @@ impl Parser {
                 }
             }
             (Some(Token::KeywordElse), Some(Token::LCurlyBracket)) => {
-                let else_body_tokens = Parser::try_extract_block(tokens)?;
+                let else_body_tokens = Parser::try_extract_block(&tokens[1..])?;
                 consumed += else_body_tokens.len() + 1 + 2; // +1 for the else keyword, +2 for brackets
                 let (block_if_false, _) = Parser::try_parse(else_body_tokens)?;
                 Some(Box::new(block_if_false))
@@ -311,10 +311,6 @@ impl Parser {
             tokens = &tokens[consumed..];
             total_consumed += consumed;
             dbg!(&ast);
-            if let Ast::Statement(Statement::Node { ip_address, port }) = &ast {
-                dbg!(String::from_utf8_lossy(ip_address));
-                dbg!(String::from_utf8_lossy(port));
-            };
             trees.push(ast);
         }
         Ok((Ast::Block(trees), total_consumed))

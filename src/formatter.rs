@@ -157,7 +157,7 @@ impl Formatter {
                 self.write(b" ");
                 self.write(&v1);
             }
-            (None, None) => todo!(),
+            (None, None) => {},
             _ => unreachable!(),
         }
         self.newline();

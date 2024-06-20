@@ -172,6 +172,21 @@ impl Parser {
         ));
     }
 
+    fn try_parse_pool(tokens: &[Token]) -> Result<(Ast, usize)> {
+        println!("parsing pool statement");
+        let mut consumed = 1; // pool
+
+        let rem_tokens = Parser::try_extract_until_newline(&tokens[1..])?;
+        consumed += rem_tokens.len() + 1;
+
+        return Ok((
+            Ast::Statement(Statement::Pool {
+                identifier: Parser::parse_vec(rem_tokens),
+            }),
+            consumed,
+        ));
+    }
+
     fn try_parse_snat(tokens: &[Token]) -> Result<(Ast, usize)> {
         println!("parsing snat statement");
         let mut consumed = 1;
@@ -337,6 +352,14 @@ impl Parser {
             }
             (Some(Token::KeywordNode), ..) => Parser::try_parse_node(tokens),
             (Some(Token::KeywordSnat), ..) => Parser::try_parse_snat(tokens),
+            (Some(Token::KeywordPool), Some(Token::Identifier(_)), Some(Token::Newline), ..)
+            | (
+                Some(Token::KeywordPool),
+                Some(Token::Dollar),
+                Some(Token::Identifier(_)),
+                Some(Token::Newline),
+                ..,
+            ) => Parser::try_parse_pool(tokens),
             (Some(Token::KeywordLog), Some(Token::Identifier(_)), Some(Token::Other(_)), ..) => {
                 Parser::try_parse_log(tokens)
             }

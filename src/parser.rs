@@ -358,7 +358,7 @@ impl Parser {
             }
 
             (Some(Token::Newline), Some(Token::Newline), ..) => Ok((Ast::EmptyLine, 2)),
-            (Some(Token::Newline), Some(_), ..) => return Ok((None, 1)), // eat newline
+            (Some(Token::Newline), _, ..) => return Ok((None, 1)), // eat newline
             (None, ..) => return Ok((None, 0)),
             _ => {
                 dbg!(&tokens[0]);

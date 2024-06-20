@@ -44,6 +44,11 @@ impl Parser {
         let (body_if_true, _) = Parser::try_parse(body_tokens)?;
         condition_body_clauses.push((if_condition, body_if_true));
 
+        // eat a newline if possible
+        if let Some(Token::Newline) = tokens.get(0) {
+            tokens = &tokens[1..];
+        }
+
         let maybe_block_if_false = match (tokens.get(0), tokens.get(1)) {
             (Some(Token::KeywordElseIf), Some(Token::LCurlyBracket)) => {
                 let (ast, consumed_rem) = Parser::try_parse_if(tokens)?;
@@ -318,6 +323,7 @@ impl Parser {
                 (None, 1) => {
                     tokens = &tokens[1..];
                     total_consumed += 1;
+                    println!("ate a newline");
                     continue;
                 }
                 (Some(ast), consumed) => (ast, consumed),
